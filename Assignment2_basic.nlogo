@@ -31,6 +31,7 @@ infrastructures-own [
   patch-y                                      ; Ycor of the patch that infrastructure agent is on
   interarrival-time                            ; Time between two aircraft arriving at runway
   activated                                    ; Makes sure interarrival-time starts counting from first arriving aircraft at runway
+  empty                                        ; If this value reports "True", no aircraft is currently using it
 ]
 
 globals [
@@ -48,6 +49,7 @@ globals [
   interarrival-time-list                         ; List of all interarrival-times
   travel-time-list                               ; List of all travel times of aircraft
   waiting-time-list                              ; List of all waiting times of aircraft
+  new_weight
 ]
 
 
@@ -113,7 +115,6 @@ to setup-roads
     set patch-type "lines"
      ]
 
-
   let roads patches with [
     ((pxcor <= 15) and (pxcor >= -15) and (pycor = 0)) or
     ((pxcor <= 15) and (pxcor >= -15) and (pycor = -5)) or
@@ -126,7 +127,6 @@ to setup-roads
     set pcolor white
     set patch-type "road"
      ]
-
 
   let gates patches with [
     ((pxcor = -5) and (pycor = -10)) or
@@ -201,11 +201,19 @@ ask infrastructures at-points [[15 5] [10 5] [5 5][0 5] [-5 5] [-10 5] [-15 5] [
    create-link-with infrastructure 1 [set weight 1] ]
 end
 
+to update-weights
+ask infrastructures with [empty = false]
+      [ask my-in-links [set weight 10 ]
+      ask my-out-links [set weight 0.5 ]]
+ ask infrastructures [set empty "true" ]
+end
+
 ;-------------------------------------------------------------------------------------
 ; GO: Once everything has been set up correctly, a go command is used to start and continue the simulation
 
 to go
   creating-aircraft                         ; Creates aircraft every certain amount of ticks
+  update-weights
   ask infrastructures [find-path]           ; Helper procedure: asks infrastructures to find the lowest weighted path over the weighted links
 
   ask aircrafts [find-other-aircraft]       ; Helper procedure: finds other aircraft close to aircraft to anticipate on these
@@ -217,8 +225,11 @@ to go
 
 ; Ask infrastructures to calculate and report the interarrival time when aircraft arrive on one of the runways
   ask infrastructures with [patch-type = "runwayleft" or patch-type = "runwayright"] [calculate-interarrival]
+  ;ask infrastructures [check-free]
 
   tick                                      ; Adds one tick everytime the go procedure is performed
+  ;ask infrastructure 10 [show empty]
+  ;ask infrastructure 10 [set color red]
 end
 
 
@@ -272,7 +283,8 @@ to check-free
     [
 
             if [following-patch-x] of other-aircraft-1 = following-patch-x and [following-patch-y] of other-aircraft-1 = following-patch-y and ([heading] of other-aircraft-1 - heading = 270 or [heading] of other-aircraft-1 - heading = -90)
-                [set free "false"]
+          [set free "false"]
+
             if [patch-x] of other-aircraft-1 = following-patch-x and [patch-y] of other-aircraft-1 = following-patch-y ;and ([free] of other-aircraft-1) = false
                 [set free "false"]
 
@@ -314,6 +326,7 @@ ifelse [patch-type] of patch-ahead 0 = "runwayleft" or [patch-type] of patch-ahe
       if on-infra = 1                                       ; If a/c is on infrastructure agent,
       [
        set last-infra infrastructure-mate                                                          ; Set last-infra to keep track of which was previous link
+
       ]
     ]
   ]
@@ -392,6 +405,7 @@ end
 to find-infrastructure-mate                                          ; If aircraft is on the same patch as an infrastructure agent, it becomes its "mate".
   ifelse [patch-type] of patch-ahead 0 = "gates" or [patch-type] of patch-ahead 0 = "waypoint" or [patch-type] of patch-ahead 0 = "runwayconnection" or [patch-type] of patch-ahead 0 = "runwayleft" or [patch-type] of patch-ahead 0 = "runwayright"
 [set infrastructure-mate min-one-of infrastructures [distance myself]; Only if on gate, runwayconnection or waypoint,
+ ask infrastructure-mate [set empty "false" ]
  find-facing                                                         ; aircraft is faced in new directsion using find-facing
  set on-infra 1]                                                     ; Furthermore, on-infra is set to 1 of the aircraft is on the same patch as
 [set on-infra 0]                                                     ; an infrastructure agent
@@ -983,6 +997,21 @@ NetLogo 6.1.0
       <value value="true"/>
       <value value="false"/>
     </enumeratedValueSet>
+  </experiment>
+  <experiment name="experiment" repetitions="2" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="2000"/>
+    <metric>mean waiting-time-list</metric>
+    <metric>mean interarrival-time-list</metric>
+    <metric>mean travel-time-list</metric>
+    <enumeratedValueSet variable="stochastic-departure">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="taxiway-capacity">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="new_weight" first="1" step="1" last="5"/>
   </experiment>
 </experiments>
 @#$#@#$#@

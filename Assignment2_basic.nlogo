@@ -83,6 +83,37 @@ end
 ; SETUP-ROADS: Make roads, gates, and runways (left and right)
 
 to setup-roads
+
+  let runway patches with [
+    ((pxcor <= 10) and (pxcor >= -10) and (pycor >= 8))
+  ]
+  ask runway [
+    set pcolor black
+    set patch-type "runway"
+     ]
+
+  let airport patches with [
+    ((pxcor <= 10) and (pxcor >= -10) and (pycor <= -14)) or
+    ((pxcor = -5) and  (pycor <= -12)) or
+    ((pxcor = 0) and  (pycor <= -12)) or
+    ((pxcor = 5) and  (pycor <= -12))
+  ]
+  ask airport [
+    set pcolor 8
+    set patch-type "airport"
+     ]
+
+  let lines patches with [
+    ((pxcor >= -9) and (pxcor mod 2 = 0) and (pxcor <= 9) and (pycor >= 9) and (pycor <= 13)) or
+    ((pxcor <= 1) and (pxcor >= -1) and (pycor = 15)) or
+    ((pxcor = -1) and (pycor = 16))
+  ]
+  ask lines [
+    set pcolor white
+    set patch-type "lines"
+     ]
+
+
   let roads patches with [
     ((pxcor <= 15) and (pxcor >= -15) and (pycor = 0)) or
     ((pxcor <= 15) and (pxcor >= -15) and (pycor = -5)) or

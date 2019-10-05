@@ -83,6 +83,34 @@ end
 ; SETUP-ROADS: Make roads, gates, and runways (left and right)
 
 to setup-roads
+
+  let runway patches with [
+    ((pxcor <= 10) and (pxcor >= -10) and (pycor >= 8))
+  ]
+  ask runway [
+    set pcolor black
+    set patch-type "runway"
+     ]
+
+  let airport patches with [
+    ((pxcor <= 10) and (pxcor >= -10) and (pycor <= -1))
+  ]
+  ask airport [
+    set pcolor 8
+    set patch-type "airport"
+     ]
+
+  let lines patches with [
+    ((pxcor >= -9) and (pxcor mod 2 = 0) and (pxcor <= 9) and (pycor >= 9) and (pycor <= 13)) or
+    ((pxcor <= 1) and (pxcor >= -1) and (pycor = 15)) or
+    ((pxcor = -1) and (pycor = 16))
+  ]
+  ask lines [
+    set pcolor white
+    set patch-type "lines"
+     ]
+
+
   let roads patches with [
     ((pxcor <= 15) and (pxcor >= -15) and (pycor = 0)) or
     ((pxcor <= 15) and (pxcor >= -15) and (pycor = -5)) or
@@ -147,13 +175,13 @@ set heading 0]]
   set color grey
 set patch-type "waypoint"
 set heading 0]]
-;; infrastructure 16 - 18 are at gates
+;; infrastructure 24 - 26 are at gates
   ask patches at-points [[5 -10][0 -10] [-5 -10] ]
 [sprout-infrastructures 1
 [  set size 0.5
   set color grey
   set heading 0]]
-;; final agent goal: infrastructure . All infrastructure agents are instructed to go to this fictional end point. It could be regarded as: take-off to flight
+;; final agent goal: infrastructure 27. All infrastructure agents are instructed to go to this fictional end point. It could be regarded as: take-off to flight
   ask patches with [((pxcor = 0) and (pycor = 15))]
 [sprout-infrastructures 1
 [  set size 0.5
@@ -165,7 +193,7 @@ end
 to creating-links
 ask infrastructures at-points [[15 5] [10 5] [5 5][0 5] [-5 5] [-10 5] [-15 5] [15 0] [10 0] [5 0][0 0] [-5 0] [-10 0] [-15 0] [15 -5] [10 -5] [5 -5][0 -5] [-5 -5] [-10 -5] [-15 -5] ]  ;Create the links.
  [create-links-with other infrastructures in-radius 5 [ set weight 1 ] ]   ;The standard weight of a link is 1
- ask infrastructure 27                                                                   ;The final goal infrastructure 19 has specific links
+ ask infrastructure 27                                                                   ;The final goal infrastructure 27 has specific links
  [create-link-with infrastructure 0 [set weight 1]
    create-link-with infrastructure 1 [set weight 1] ]
 end
@@ -293,7 +321,7 @@ end
 ; Procedures called upon in the above procedures.
 
 to find-path
-  set path nw:turtles-on-weighted-path-to infrastructure 19 "weight"  ; Asks infrastructures to find the lowest weighted path over the weighted links
+  set path nw:turtles-on-weighted-path-to infrastructure 27 "weight"  ; Asks infrastructures to find the lowest weighted path over the weighted links
 end
 
 to make-ticks-generator                                              ; Specifies how often new aircraft are generated

@@ -81,6 +81,7 @@ set interarrival-time-list []                  ; Initialize interarrival-time-li
   set travel-time-list []                      ; Initialize travel-time-list
   set waiting-time-list []                     ; Initialize waiting-time-list
   ask infrastructures [find-patches]           ; Helper procedure that finds Xcor and Ycor of infrastructures
+
   reset-ticks
 end
 
@@ -227,7 +228,7 @@ if count other aircrafts in-radius 5 != 0
     [ask link [who] of self [who] of neighbor-west [set weight num-ac-west + 1]]
   ]
 
-
+;if empty = 0
  ; [if link-neighbors with [empty = 0]  != nobody
   ;  [ask link-neighbors with [empty = 0]
    ;    [ask link [who] of self [who] of myself [set weight 5 ]]
@@ -255,6 +256,8 @@ to go
   ;ask infrastructures [check-free]
 
   tick                                      ; Adds one tick everytime the go procedure is performed
+  ;ask infrastructure 10 [show empty]
+  ;ask infrastructure 10 [set color red]
 end
 
 
@@ -439,6 +442,7 @@ end
 to find-infrastructure-mate                                          ; If aircraft is on the same patch as an infrastructure agent, it becomes its "mate".
   ifelse [patch-type] of patch-ahead 0 = "gates" or [patch-type] of patch-ahead 0 = "waypoint" or [patch-type] of patch-ahead 0 = "runwayconnection" or [patch-type] of patch-ahead 0 = "runwayleft" or [patch-type] of patch-ahead 0 = "runwayright"
 [set infrastructure-mate min-one-of infrastructures [distance myself]; Only if on gate, runwayconnection or waypoint,
+ ask infrastructure-mate [set empty 0]
  find-facing                                                         ; aircraft is faced in new directsion using find-facing
  set on-infra 1]                                                     ; Furthermore, on-infra is set to 1 of the aircraft is on the same patch as
 [set on-infra 0]                                                     ; an infrastructure agent

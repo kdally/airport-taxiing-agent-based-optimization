@@ -223,7 +223,7 @@ if any? other aircrafts with [xcor = px and ycor > py and ycor <= 5 + py]
    ask link [who] of self [who] of neighbor-north [set weight num-ac-north / 5 + 1]
   ]
 
-if any? other aircrafts with [xcor > px and xcor <= 5 + px and ycor = py]
+if any? other aircrafts with [xcor > px and xcor < 5 + px and ycor = py]
   [let num-ac-east count aircrafts with [xcor > px and xcor <= 5 + px and ycor = py]
    ask link [who] of self [who] of neighbor-east [set weight num-ac-east / 5 + 1]
   ]
@@ -319,7 +319,7 @@ to go
 
   tick                                      ; Adds one tick everytime the go procedure is performed
 
-  ask links [if weight != 1 [show weight]]
+  ;ask links [if weight != 1 [show weight]]
 end
 
 

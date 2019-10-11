@@ -18,7 +18,7 @@ aircrafts-own [
   patch-y                                      ; Ycor of the patch that aircraft is currently on
   following-patch-x                            ; Xcor of the patch that aircraft is on when it makes one step forward with the same heading
   following-patch-y                            ; Ycor of the patch that aircraft is on when it makes one step forward with the same heading
-  free                                         ; If this value reports "false", the aircraft should not move in order to prevent collision
+  free                                         ; If this value reports false, the aircraft should not move in order to prevent collision
   on-infra                                     ; Reports if aircraft is on same patch as an infrastructure agent or not
   travel-time                                  ; Describes how long an aircraft is on the road
   waiting-time                                 ; Amount of time that aircraft has waited in total when travelling from gate to runway
@@ -32,6 +32,7 @@ infrastructures-own [
   interarrival-time                            ; Time between two aircraft arriving at runway
   activated                                    ; Makes sure interarrival-time starts counting from first arriving aircraft at runway
 
+  free
   neighbor-north
   neighbor-east
   neighbor-south
@@ -70,6 +71,7 @@ extensions [
 
 to setup
   clear-all
+
   ask patches [ set pcolor green + 1 ]         ; Make all patches green, except:
   setup-roads                                  ; patches with special patch-types: roads, gates, and runways
   infrastructure-placing                       ; Place infrastructure agents on every intersection
@@ -77,11 +79,11 @@ to setup
   ask infrastructures [find-neigboring-infrastructure]  ; Helper procedure: make each infrastructure agent find its neighboring infrastructure agents
   set-default-shape aircrafts "airplane"
   set-default-shape infrastructures "circle"
-set interarrival-time-list []                  ; Initialize interarrival-time-list
+  set interarrival-time-list []                  ; Initialize interarrival-time-list
   set travel-time-list []                      ; Initialize travel-time-list
   set waiting-time-list []                     ; Initialize waiting-time-list
   ask infrastructures [find-patches]           ; Helper procedure that finds Xcor and Ycor of infrastructures
-
+   ask infrastructures [set free true]
   reset-ticks
 end
 
@@ -207,32 +209,88 @@ ask infrastructures at-points [[15 5] [10 5] [5 5][0 5] [-5 5] [-10 5] [-15 5] [
    create-link-with infrastructure 1 [set weight 1] ]
 end
 
-to update-weights
-ask my-links [set weight 1]
 
-if count other aircrafts in-radius 5 != 0
-   [let px xcor
-    let py ycor
-    let num-ac-north count other aircrafts in-radius 5 with [xcor = px and ycor > py]
-    let num-ac-east count other aircrafts in-radius 5 with [xcor > px and ycor = py]
-    let num-ac-south count other aircrafts in-radius 5 with [xcor = px and ycor < py]
-    let num-ac-west count other aircrafts in-radius 5 with [xcor < px and ycor = py]
+;-------------------------------------------------------------------------------------
+; UPDATE-WEIGHTS:
 
-    if neighbor-north != nobody
-    [ask link [who] of self [who] of neighbor-north [set weight num-ac-north + 1]]
-    if neighbor-east != nobody
-    [ask link [who] of self [who] of neighbor-east [set weight num-ac-east + 1]]
-    if neighbor-south != nobody
-    [ask link [who] of self [who] of neighbor-south [set weight num-ac-south + 1]]
-    if neighbor-west != nobody
-    [ask link [who] of self [who] of neighbor-west [set weight num-ac-west + 1]]
+to update-weights-local
+if not free; and xcor = 0 and ycor = 15
+[let px xcor
+ let py ycor
+
+if any? other aircrafts with [xcor = px and ycor > py and ycor <= 5 + py]
+  [let num-ac-north count aircrafts with [xcor = px and ycor > py and ycor <= 5 + py]
+   ask link [who] of self [who] of neighbor-north [set weight num-ac-north / 5 + 1]
   ]
 
-;if empty = 0
+if any? other aircrafts with [xcor > px and xcor <= 5 + px and ycor = py]
+  [let num-ac-east count aircrafts with [xcor > px and xcor <= 5 + px and ycor = py]
+   ask link [who] of self [who] of neighbor-east [set weight num-ac-east / 5 + 1]
+  ]
+
+if any? other aircrafts with [xcor = px and ycor < py and ycor >= py - 5]
+  [let num-ac-south count aircrafts with [xcor = px and ycor < py and ycor >= py - 5]
+   ask link [who] of self [who] of neighbor-south [set weight num-ac-south / 5 + 1]
+  ]
+
+if any? other aircrafts with [xcor > px and xcor <= px - 5 and ycor = py]
+  [let num-ac-west count aircrafts with [xcor > px and xcor <= px - 5 and ycor = py]
+   ask link [who] of self [who] of neighbor-west [set weight num-ac-west / 5 + 1]
+  ]
+  ]
+end
+
+to update-weights-global
+
+;  if not free
+;  [let waiting-aircrafts aircrafts in-radius 20 with [free = false and last-infra != nobody]
+;  if any? waiting-aircrafts
+;    [let waiting
+;
+;    [ifelse
+;      [free] of [one-of other-aircraft] of one-of waiting-aircrafts [
+;       let path-to-traffic nw:path-to [last-infra] of one-of waiting-aircraft
+;       foreach sort path-to-traffic [the-link ->
+;       ask the-link [set weight 1.5]]
+;    ]
+;    choice = 1 [
+;      set pcolor blue
+;      set plabel "b"
+;    ]
+;    choice = 2 [
+;      set pcolor green
+;      set plabel "g"
+;    ]
+;    ; elsecommands
+;    [
+;      set pcolor yellow
+;      set plabel "y"
+;  ]
+;    ]
+;  ]
+
+
+;    [let path-to-traffic nw:path-to [last-infra] of one-of waiting-aircraft
+;      foreach sort path-to-traffic [the-link ->
+;      ask the-link [set weight 1.5]]
+;    ]
+;  ]
+
+;    [ask aircrafts in-radius 20 with [free = false and last-infra != nobody]
+;      [;show last-infra
+;       let path-to-traffic nw:path-to last-infra
+;       show path-to-traffic]
+;    ]
+;  ]
+
+  ;if any? aircrafts in-radius 20 with [free = false]
+  ;[show [who] of aircrafts]
+
+  ;nw:path-to target-turtle
+
  ; [if link-neighbors with [empty = 0]  != nobody
   ;  [ask link-neighbors with [empty = 0]
    ;    [ask link [who] of self [who] of myself [set weight 5 ]]
-
 end
 
 ;-------------------------------------------------------------------------------------
@@ -240,9 +298,12 @@ end
 
 to go
   creating-aircraft                         ; Creates aircraft every certain amount of ticks
-  ask infrastructures [update-weights]
-  ask infrastructures [find-path]                  ; Helper procedure: asks infrastructures to find the lowest weighted path over the weighted links
 
+  ask links [set weight 1]
+
+  ask infrastructures [update-weights-local]
+
+  ask infrastructures [find-path]                  ; Helper procedure: asks infrastructures to find the lowest weighted path over the weighted links
 
   ask aircrafts [find-other-aircraft]       ; Helper procedure: finds other aircraft close to aircraft to anticipate on these
   ask aircrafts [find-infrastructure-mate]  ; Helper procedure: if aircraft is on same patch as an infrastructure agent is, it becomes its "mate"
@@ -253,11 +314,12 @@ to go
 
 ; Ask infrastructures to calculate and report the interarrival time when aircraft arrive on one of the runways
   ask infrastructures with [patch-type = "runwayleft" or patch-type = "runwayright"] [calculate-interarrival]
-  ;ask infrastructures [check-free]
+
+  ;ask infrastructures [update-weights-global]
 
   tick                                      ; Adds one tick everytime the go procedure is performed
-  ;ask infrastructure 10 [show empty]
-  ;ask infrastructure 10 [set color red]
+
+  ask links [if weight != 1 [show weight]]
 end
 
 
@@ -299,42 +361,41 @@ end
 
 to check-free
   find-other-aircraft-1-2-3          ; Helper procedure that finds and identifies other aircraft that are within radius of 1.5 patches
-  set free "true"                    ; In principle aircraft is free to go further.
+  set free true                    ; In principle aircraft is free to go further.
 
 ; But if there is an aircraft nearby, it is checked if the next patch (x,y) of the other aircraft is equal to next patch (x,y) of
 ; the aircraft itself. Furthermore it is checked if the next current patch (x,y) of the other aircraft is equal to the next patch (x,y)
-; of the aircraft itself. If one of this is true, free is set to "false", which means that the aircraft may not continue.
-; For which of the two aircraft free is set to "false" depends on if the negotiation type.
+; of the aircraft itself. If one of this is true, free is set to false, which means that the aircraft may not continue.
+; For which of the two aircraft free is set to false depends on if the negotiation type.
 ; Currently, the aircraft that comes from the right on the crossings gets the priority
 
   if other-aircraft-1 != nobody
     [
 
             if [following-patch-x] of other-aircraft-1 = following-patch-x and [following-patch-y] of other-aircraft-1 = following-patch-y and ([heading] of other-aircraft-1 - heading = 270 or [heading] of other-aircraft-1 - heading = -90)
-          [set free "false"]
+          [set free false]
 
             if [patch-x] of other-aircraft-1 = following-patch-x and [patch-y] of other-aircraft-1 = following-patch-y ;and ([free] of other-aircraft-1) = false
-                [set free "false"]
+                [set free false]
 
 
       if other-aircraft-2 != nobody
         [
                   if [following-patch-x] of other-aircraft-2 = following-patch-x and [following-patch-y] of other-aircraft-2 = following-patch-y and ([heading] of other-aircraft-2 - heading = 270 or [heading] of other-aircraft-2 - heading = -90)
-                      [set free "false"]
+                      [set free false]
                   if [patch-x] of other-aircraft-2 = following-patch-x and [patch-y] of other-aircraft-2 = following-patch-y ;and ([free] of other-aircraft-2) = false
-                      [set free "false"]
+                      [set free false]
 
 
            if other-aircraft-3 != nobody
              [
                       if [following-patch-x] of other-aircraft-3 = following-patch-x and [following-patch-y] of other-aircraft-3 = following-patch-y and ([heading] of other-aircraft-3 - heading = 270 or [heading] of other-aircraft-3 - heading = -90)
-                        [set free "false"]
+                        [set free false]
                       if [patch-x] of other-aircraft-3 = following-patch-x and [patch-y] of other-aircraft-3 = following-patch-y
-                        [set free "false"]
+                        [set free false]
              ]
         ]
     ]
-
 end
 
 ; NORMAL-TAXI-RUNWAY: Procedure to either move forward or not, using the specified variables
@@ -345,7 +406,7 @@ ifelse [patch-type] of patch-ahead 0 = "runwayleft" or [patch-type] of patch-ahe
  [set travel-time-list lput travel-time travel-time-list    ; Put the travel time of the arrived aircraft in the list
   set waiting-time-list lput waiting-time waiting-time-list ; Put the waiting time of the arrived aircraft in the list
   die ]                                                     ; If runway has been reached: die.
-  [ifelse free = "false"
+  [ifelse free = false
     [move-to patch-ahead 0                                  ; Don't move ahead if it is specified that the way is not free,
       set waiting-time (waiting-time + 1)                   ; set waiting time plus one, because he waits one unit of time,
       set color red]                                        ; and set color to red, to see clearly that an aircraft is waiting
@@ -354,7 +415,6 @@ ifelse [patch-type] of patch-ahead 0 = "runwayleft" or [patch-type] of patch-ahe
       if on-infra = 1                                       ; If a/c is on infrastructure agent,
       [
        set last-infra infrastructure-mate                                                          ; Set last-infra to keep track of which was previous link
-
       ]
     ]
   ]
@@ -404,12 +464,13 @@ to find-other-aircraft                                               ; Find othe
 end
 
 to find-neigboring-infrastructure                                     ; Identitfy the neighbors infrastructure agents nearby
-  let px patch-x
-  let py patch-y
-  set neighbor-north one-of other infrastructures with [patch-x = px and patch-y = py + 5]
-  set neighbor-east one-of link-neighbors with [patch-x = px + 5 and patch-y = py]
-  set neighbor-south one-of link-neighbors with [patch-x = px and patch-y = py - 5]
-  set neighbor-west one-of link-neighbors with [patch-x = px - 5 and patch-y = py]
+  let px xcor
+  let py ycor
+
+  set neighbor-north one-of link-neighbors with [xcor = px     and ycor = py + 5]   ;works with other infrastructures but to make it faster we search neighbors only
+  set neighbor-east  one-of link-neighbors with [xcor = px + 5 and ycor = py]
+  set neighbor-south one-of link-neighbors with [xcor = px     and ycor = py - 5]
+  set neighbor-west  one-of link-neighbors with [xcor = px - 5 and ycor = py]
 end
 
 to find-nearest-aircraft                                             ; Finds nearest aircraft to check for collision
@@ -435,14 +496,13 @@ to find-other-aircraft-1-2-3                                         ; Find and 
    [set other-aircraft-1 nobody                                      ; If there are no other aircraft, set other-aircraft-1, -2 and -3 = nobody
     set other-aircraft-2 nobody
     set other-aircraft-3 nobody]
-
-
 end
 
 to find-infrastructure-mate                                          ; If aircraft is on the same patch as an infrastructure agent, it becomes its "mate".
+  ask infrastructures [set free true]
   ifelse [patch-type] of patch-ahead 0 = "gates" or [patch-type] of patch-ahead 0 = "waypoint" or [patch-type] of patch-ahead 0 = "runwayconnection" or [patch-type] of patch-ahead 0 = "runwayleft" or [patch-type] of patch-ahead 0 = "runwayright"
 [set infrastructure-mate min-one-of infrastructures [distance myself]; Only if on gate, runwayconnection or waypoint,
- ask infrastructure-mate [set empty 0]
+ ask infrastructure-mate [set free false]
  find-facing                                                         ; aircraft is faced in new directsion using find-facing
  set on-infra 1]                                                     ; Furthermore, on-infra is set to 1 of the aircraft is on the same patch as
 [set on-infra 0]                                                     ; an infrastructure agent

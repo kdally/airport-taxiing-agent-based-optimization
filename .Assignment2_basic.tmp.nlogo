@@ -23,6 +23,7 @@ aircrafts-own [
   travel-time                                  ; Describes how long an aircraft is on the road
   waiting-time                                 ; Amount of time that aircraft has waited in total when travelling from gate to runway
   last-infra                                   ; Last infrastructure agent that aircraft has passed
+
 ]
 
 infrastructures-own [
@@ -54,7 +55,6 @@ globals [
   interarrival-time-list                         ; List of all interarrival-times
   travel-time-list                               ; List of all travel times of aircraft
   waiting-time-list                              ; List of all waiting times of aircraft
-  new_weight
 ]
 
 
@@ -83,7 +83,7 @@ to setup
   set travel-time-list []                      ; Initialize travel-time-list
   set waiting-time-list []                     ; Initialize waiting-time-list
   ask infrastructures [find-patches]           ; Helper procedure that finds Xcor and Ycor of infrastructures
-   ask infrastructures [set free true]
+  ask infrastructures [set free true]
   reset-ticks
 end
 
@@ -220,79 +220,72 @@ if not free
 
 if any? other aircrafts with [xcor = px and ycor > py and ycor <= 5 + py]
   [let num-ac-north count aircrafts with [xcor = px and ycor > py and ycor <= 5 + py]
-   ask link [who] of self [who] of neighbor-north [set weight num-ac-north / 5 + 1]
+   ask link [who] of self [who] of neighbor-north [set weight num-ac-north / weight-force + 1]
   ]
 
 if any? other aircrafts with [xcor > px and xcor < 5 + px and ycor = py]
   [let num-ac-east count aircrafts with [xcor > px and xcor <= 5 + px and ycor = py]
-   ask link [who] of self [who] of neighbor-east [set weight num-ac-east / 5 + 1]
+   ask link [who] of self [who] of neighbor-east [set weight num-ac-east  / weight-force + 1]
   ]
 
 if any? other aircrafts with [xcor = px and ycor < py and ycor >= py - 5]
   [let num-ac-south count aircrafts with [xcor = px and ycor < py and ycor >= py - 5]
-   ask link [who] of self [who] of neighbor-south [set weight num-ac-south / 5 + 1]
+   ask link [who] of self [who] of neighbor-south [set weight num-ac-south  / weight-force + 1]
   ]
 
 if any? other aircrafts with [xcor > px and xcor <= px - 5 and ycor = py]
   [let num-ac-west count aircrafts with [xcor > px and xcor <= px - 5 and ycor = py]
-   ask link [who] of self [who] of neighbor-west [set weight num-ac-west / 5 + 1]
+   ask link [who] of self [who] of neighbor-west [set weight num-ac-west  / weight-force + 1]
   ]
+  ]
+end
+
+to update-weights-to-traffic
+
+  if not free
+  [let waiting-aircrafts aircrafts in-radius 30 with [free = false and last-infra != nobody]
+  if any? waiting-aircrafts
+
+   [ask waiting-aircrafts
+      [find-other-aircraft
+
+      (ifelse
+        all? other-aircraft [free = false]
+        [ask myself
+          [let path-to-traffic nw:path-to [last-infra] of myself
+            foreach sort path-to-traffic [the-link ->
+              ask the-link [set weight 1.7]]
+        ]]
+
+        any? other-aircraft with [free = false]
+        [ask myself
+          [let path-to-traffic nw:path-to [last-infra] of myself
+            foreach sort path-to-traffic [the-link ->
+              ask the-link [set weight 1.3]]
+        ]]
+        ; elsecommands
+        [ask myself
+          [let path-to-traffic nw:path-to [last-infra] of myself
+            foreach sort path-to-traffic [the-link ->
+              ask the-link [set weight 1.1]]
+      ]])
+      ]
+    ]
+  ]
+end
+
+to update-weights-for-symmetry
+  if not free
+  [ifelse count aircrafts with [xcor > 0 and free = false] > count aircrafts with [xcor < 0 and free = false]
+  [ask link [who] of self [who] of neighbor-east [set weight 1.5]]
+  [ask link [who] of self [who] of neighbor-west [set weight 1.5]]
   ]
 end
 
 to update-weights-global
-
-;  if not free
-;  [let waiting-aircrafts aircrafts in-radius 20 with [free = false and last-infra != nobody]
-;  if any? waiting-aircrafts
-;    [let waiting
-;
-;    [ifelse
-;      [free] of [one-of other-aircraft] of one-of waiting-aircrafts [
-;       let path-to-traffic nw:path-to [last-infra] of one-of waiting-aircraft
-;       foreach sort path-to-traffic [the-link ->
-;       ask the-link [set weight 1.5]]
-;    ]
-;    choice = 1 [
-;      set pcolor blue
-;      set plabel "b"
-;    ]
-;    choice = 2 [
-;      set pcolor green
-;      set plabel "g"
-;    ]
-;    ; elsecommands
-;    [
-;      set pcolor yellow
-;      set plabel "y"
-;  ]
-;    ]
-;  ]
-
-
-;    [let path-to-traffic nw:path-to [last-infra] of one-of waiting-aircraft
-;      foreach sort path-to-traffic [the-link ->
-;      ask the-link [set weight 1.5]]
-;    ]
-;  ]
-
-;    [ask aircrafts in-radius 20 with [free = false and last-infra != nobody]
-;      [;show last-infra
-;       let path-to-traffic nw:path-to last-infra
-;       show path-to-traffic]
-;    ]
-;  ]
-
-  ;if any? aircrafts in-radius 20 with [free = false]
-  ;[show [who] of aircrafts]
-
-  ;nw:path-to target-turtle
-
- ; [if link-neighbors with [empty = 0]  != nobody
-  ;  [ask link-neighbors with [empty = 0]
-   ;    [ask link [who] of self [who] of myself [set weight 5 ]]
+ask infrastructures [update-weights-to-traffic]
+ask infrastructures with [patch-x = 0 and patch-y >= -5][update-weights-for-symmetry]
 end
-
 ;-------------------------------------------------------------------------------------
 ; GO: Once everything has been set up correctly, a go command is used to start and continue the simulation
 
@@ -301,7 +294,8 @@ to go
 
   ask links [set weight 1]
 
-  ask infrastructures [update-weights-local]
+  ;ask infrastructures [update-weights-local]
+  update-weights-global
 
   ask infrastructures [find-path]                  ; Helper procedure: asks infrastructures to find the lowest weighted path over the weighted links
 
@@ -315,11 +309,10 @@ to go
 ; Ask infrastructures to calculate and report the interarrival time when aircraft arrive on one of the runways
   ask infrastructures with [patch-type = "runwayleft" or patch-type = "runwayright"] [calculate-interarrival]
 
-  ;ask infrastructures [update-weights-global]
 
   tick                                      ; Adds one tick everytime the go procedure is performed
 
-  ask links [if weight != 1 [show weight]]
+  ;ask links [if weight != 1 [show weight]]
 end
 
 
@@ -716,6 +709,21 @@ taxiway-capacity
 10
 100
 100.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+12
+191
+184
+224
+weight-force
+weight-force
+1
+10
+4.0
 1
 1
 NIL

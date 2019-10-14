@@ -339,7 +339,7 @@ to go
   ask highways [set weight 1]
 
   ;ask infrastructures [update-weights-local]
-  update-weights-global
+  ;update-weights-global
 
   ask infrastructures [find-path]                  ; Helper procedure: asks infrastructures to find the lowest weighted path over the weighted links
 
@@ -404,12 +404,24 @@ to check-free
 ; the aircraft itself. Furthermore it is checked if the next current patch (x,y) of the other aircraft is equal to the next patch (x,y)
 ; of the aircraft itself. If one of this is true, free is set to false, which means that the aircraft may not continue.
 ; For which of the two aircraft free is set to false depends on if the negotiation type.
-; Currently, the aircraft that comes from the right on the crossings gets the priority
+; Currently, the aircraft that has the lowest travel time, exlained below
+
+; COORDINATION by rules
+; if the travel time of the other-aircraft is more than its own travel time, free is set to false
+; as such, priority is given to the other agent as it has been traveling for a longer amount of time
+; a longer travel time indicates heavy traffic on the road taken by the other agent, it therefore makes sense to give way in order to reduce traffic density from the path taken by other agent
+
+
+; priority from right was deleted: "and ([heading] of other-aircraft-1 - heading = 270 or [heading] of other-aircraft-1 - heading = -90)" due to lower efficiency
+
+; runway-usage method prevents two aircraft using entering the runway simultaneously
+  runway-usage
+
 
   if other-aircraft-1 != nobody
     [
 
-            if [following-patch-x] of other-aircraft-1 = following-patch-x and [following-patch-y] of other-aircraft-1 = following-patch-y and ([heading] of other-aircraft-1 - heading = 270 or [heading] of other-aircraft-1 - heading = -90)
+            if [following-patch-x] of other-aircraft-1 = following-patch-x and [following-patch-y] of other-aircraft-1 = following-patch-y  and [travel-time] of other-aircraft-1 > travel-time
           [set free false]
 
             if [patch-x] of other-aircraft-1 = following-patch-x and [patch-y] of other-aircraft-1 = following-patch-y ;and ([free] of other-aircraft-1) = false
@@ -418,7 +430,7 @@ to check-free
 
       if other-aircraft-2 != nobody
         [
-                  if [following-patch-x] of other-aircraft-2 = following-patch-x and [following-patch-y] of other-aircraft-2 = following-patch-y and ([heading] of other-aircraft-2 - heading = 270 or [heading] of other-aircraft-2 - heading = -90)
+          if [following-patch-x] of other-aircraft-2 = following-patch-x and [following-patch-y] of other-aircraft-2 = following-patch-y and [travel-time] of other-aircraft-2 > travel-time
                       [set free false]
                   if [patch-x] of other-aircraft-2 = following-patch-x and [patch-y] of other-aircraft-2 = following-patch-y ;and ([free] of other-aircraft-2) = false
                       [set free false]
@@ -426,7 +438,7 @@ to check-free
 
            if other-aircraft-3 != nobody
              [
-                      if [following-patch-x] of other-aircraft-3 = following-patch-x and [following-patch-y] of other-aircraft-3 = following-patch-y and ([heading] of other-aircraft-3 - heading = 270 or [heading] of other-aircraft-3 - heading = -90)
+              if [following-patch-x] of other-aircraft-3 = following-patch-x and [following-patch-y] of other-aircraft-3 = following-patch-y and [travel-time] of other-aircraft-3 > travel-time
                         [set free false]
                       if [patch-x] of other-aircraft-3 = following-patch-x and [patch-y] of other-aircraft-3 = following-patch-y
                         [set free false]
@@ -460,6 +472,39 @@ end
 ;--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ; HELPER PROCEDURES
 ; Procedures called upon in the above procedures.
+
+
+to runway-usage                                                       ; to prevent two aircraft of using the runway at the same time
+  ; TOO EXTENSIVE WAY: DISREGARD
+  ;let agents-on-approach-runwayleft count other aircrafts with [(pxcor = -15) and (pycor > 5)]
+  ;let agents-on-approach-runwayright count other aircrafts with [(pxcor = 15) and (pycor > 5)]
+  ;print agents-on-approach-runwayleft
+  ;let rechts count other aircrafts with [[patch-type] of patch-ahead 1 = "runwayright"]
+  ;let linkse count other aircrafts with [[patch-type] of patch-ahead 1 = "runwayleft"]
+
+  ;if agents-on-approach-runwayleft < agents-on-approach-runwayright - 2
+  ; originally only the following three lines
+  ;[if [patch-type] of patch-ahead 1 = "runwayleft" and rechts != 0
+  ;[set free false]
+  ;]
+
+   ;if [patch-type] of patch-ahead 1 = "runwayright" and linkse != 0
+  ;[set free false
+  ;]
+
+  ; NEW WAY: global variable 'runway-occupied' indicates whether runway is occupied or not
+  let rechts count other aircrafts with [[patch-type] of patch-ahead 1 = "runwayright"]
+  let linkse count other aircrafts with [[patch-type] of patch-ahead 1 = "runwayleft"]
+
+  ; it was found that it is sifficient to apply this rule only to the left agent
+  ; the reason for this is that when the initial sequence of asimultaneous arrival at runway is set, the sequence remains the same
+  ; (as aircraft behind are most likely in queue, making the distance between all aircraft equal
+  ; this allows us to restrict the separation rule only to either side, as once the asimultaneous arrival of left and right is set, this method does not need to intervene anymore
+
+  ;if agents-on-approach-runwayleft < agents-on-approach-runwayright - 2
+  if [patch-type] of patch-ahead 1 = "runwayleft" and rechts != 0
+  [set free false]
+end
 
 to find-path
   set path nw:turtles-on-weighted-path-to infrastructure 27 "weight"  ; Asks infrastructures to find the lowest weighted path over the weighted links

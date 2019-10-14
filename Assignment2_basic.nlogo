@@ -277,38 +277,20 @@ if any? other aircrafts with [xcor < px and xcor > 5 - px and ycor = py]
   ]
 end
 
-to update-weights-leading-to-congested-areas
+to update-weights-leading-to-congestion
 
   if not free
-  [let waiting-aircrafts aircrafts in-radius 30 with [free = false and last-infra != nobody]
-  if any? waiting-aircrafts
-
-   [ask waiting-aircrafts
-      [find-other-aircraft
-
-      (ifelse
-        all? other-aircraft [free = false]
-        [ask myself
-          [let path-to-traffic nw:path-to [last-infra] of myself
-            foreach sort path-to-traffic [the-link ->
-              ask the-link [set weight 1.5]]
-        ]]
-
-        any? other-aircraft with [free = false]
-        [ask myself
-          [let path-to-traffic nw:path-to [last-infra] of myself
-            foreach sort path-to-traffic [the-link ->
-              ask the-link [set weight 1.3]]
-        ]]
-        ; elsecommands
-        [ask myself
-          [let path-to-traffic nw:path-to [last-infra] of myself
-            foreach sort path-to-traffic [the-link ->
-              ask the-link [set weight 1.1]]
-      ]])
-      ]
-    ]
+     [let waiting-aircrafts aircrafts in-radius 40 with [free = false and last-infra != nobody]
+      if any? waiting-aircrafts
+         [foreach sort-on [waiting-time] waiting-aircrafts [the-waiting-aircraft ->
+          let path-to-congestion nw:weighted-path-to [last-infra] of the-waiting-aircraft "weight"
+          if not empty? path-to-congestion
+             [let weight-factor [waiting-time] of the-waiting-aircraft / max [waiting-time] of waiting-aircrafts
+              ask first path-to-congestion [set weight 1 + 1 * weight-factor]
+              ]]
+        ]
   ]
+
 end
 
 to update-weights-for-symmetry
@@ -326,7 +308,7 @@ to update-weights-for-symmetry
 end
 
 to update-weights-global
-ask infrastructures [update-weights-leading-to-congested-areas]
+ask infrastructures [update-weights-leading-to-congestion]
 ask infrastructures with [patch-x = 0 and patch-y >= -5][update-weights-for-symmetry]
 end
 ;-------------------------------------------------------------------------------------
@@ -339,7 +321,7 @@ to go
   ask highways [set weight 1]
 
   ;ask infrastructures [update-weights-local]
-  ;update-weights-global
+  update-weights-global
 
   ask infrastructures [find-path]                  ; Helper procedure: asks infrastructures to find the lowest weighted path over the weighted links
 
@@ -549,15 +531,11 @@ to find-neigboring-infrastructure                                     ; Identitf
   let px xcor
   let py ycor
 
-  set neighbor-north one-of infrastructures with [xcor = px     and ycor = py + 5]   ;works with other infrastructures but to make it faster we search neighbors only
+  set neighbor-north one-of infrastructures with [xcor = px     and ycor = py + 5]
   set neighbor-east  one-of infrastructures with [xcor = px + 5 and ycor = py]
   set neighbor-south one-of infrastructures with [xcor = px     and ycor = py - 5]
   set neighbor-west  one-of infrastructures with [xcor = px - 5 and ycor = py]
 
-;  set neighbor-north one-of link-neighbors with [xcor = px     and ycor = py + 5]   ;works with other infrastructures but to make it faster we search neighbors only
-;  set neighbor-east  one-of link-neighbors with [xcor = px + 5 and ycor = py]
-;  set neighbor-south one-of link-neighbors with [xcor = px     and ycor = py - 5]
-;  set neighbor-west  one-of link-neighbors with [xcor = px - 5 and ycor = py]
 end
 
 to find-nearest-aircraft                                             ; Finds nearest aircraft to check for collision
@@ -586,13 +564,13 @@ to find-other-aircraft-1-2-3                                         ; Find and 
 end
 
 to find-infrastructure-mate                                          ; If aircraft is on the same patch as an infrastructure agent, it becomes its "mate".
-  ask infrastructures [set free true]
   ifelse [patch-type] of patch-ahead 0 = "gates" or [patch-type] of patch-ahead 0 = "waypoint" or [patch-type] of patch-ahead 0 = "runwayconnection" or [patch-type] of patch-ahead 0 = "runwayleft" or [patch-type] of patch-ahead 0 = "runwayright"
 [set infrastructure-mate min-one-of infrastructures [distance myself]; Only if on gate, runwayconnection or waypoint,
  ask infrastructure-mate [set free false]
  find-facing                                                         ; aircraft is faced in new directsion using find-facing
  set on-infra 1]                                                     ; Furthermore, on-infra is set to 1 of the aircraft is on the same patch as
-[set on-infra 0]                                                     ; an infrastructure agent
+[set on-infra 0                                                     ; an infrastructure agent
+  ask infrastructures [set free true]]
 end
 
 to find-facing                                                       ; Helps aircraft face in right direction, as determined by the goal

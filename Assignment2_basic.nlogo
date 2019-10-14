@@ -1,6 +1,10 @@
 breed [ infrastructures infrastructure  ]      ;; Define two types of agents: infrastructure and aircraft agents
 breed [ aircrafts aircraft ]
 
+undirected-link-breed [local-roads local-road]
+directed-link-breed [highways highway]
+
+
 patches-own[
   patch-type                                      ; Patches can be "road" (white), "gate" (red) or "runway" (blue)
 ]
@@ -75,7 +79,8 @@ to setup
   ask patches [ set pcolor green + 1 ]         ; Make all patches green, except:
   setup-roads                                  ; patches with special patch-types: roads, gates, and runways
   infrastructure-placing                       ; Place infrastructure agents on every intersection
-  creating-links                               ; Create links between all infrastructre agents
+  ;creating-links                               ; Create links between all infrastructre agents
+  creating-bi/directional-links
   ask infrastructures [find-neigboring-infrastructure]  ; Helper procedure: make each infrastructure agent find its neighboring infrastructure agents
   set-default-shape aircrafts "airplane"
   set-default-shape infrastructures "circle"
@@ -203,12 +208,36 @@ end
 ; CREATING-LINKS: Create links between infrastructure agents
 to creating-links
 ask infrastructures at-points [[15 5] [10 5] [5 5][0 5] [-5 5] [-10 5] [-15 5] [15 0] [10 0] [5 0][0 0] [-5 0] [-10 0] [-15 0] [15 -5] [10 -5] [5 -5][0 -5] [-5 -5] [-10 -5] [-15 -5] ]  ;Create the links.
- [create-links-with other infrastructures in-radius 5 [ set weight 1 ] ]   ;The standard weight of a link is 1
+ [create-local-roads-with other infrastructures in-radius 5 [ set weight 1 ] ]   ;The standard weight of a link is 1
  ask infrastructure 27                                                                   ;The final goal infrastructure 27 has specific links
- [create-link-with infrastructure 0 [set weight 1]
-   create-link-with infrastructure 1 [set weight 1] ]
+ [create-local-road-with infrastructure 0 [set weight 1]
+   create-local-road-with infrastructure 1 [set weight 1] ]
 end
 
+
+to creating-bi/directional-links
+
+  let main-infra infrastructures with [abs(xcor) = 15 or ycor = -5 and abs(xcor) >= 5]
+  let local-infra infrastructures with [not member? self highways and ycor != 15 and ycor != -10]
+
+  ask local-infra
+  [create-local-roads-with other infrastructures in-radius 5 [ set weight 1 ]]    ;The standard weight of a link is 1
+
+  ask main-infra
+  [let py ycor
+   let px xcor
+
+   if any? main-infra with [xcor = px and ycor = py + 5]
+   [create-highway-to one-of main-infra with [xcor = px and ycor = py + 5][ set weight 0.8]]
+
+   if any? main-infra with [abs(xcor) = abs(px) + 5 and ycor = py and xcor * px > 0]
+   [create-highway-to one-of main-infra with [abs(xcor) = abs(px) + 5 and ycor = py and xcor * px > 0][ set weight 0.8 ]]
+  ]
+
+  ask infrastructure 27                                                                   ;The final goal infrastructure 27 has specific links
+  [create-highway-from infrastructure 0 [set weight 1]
+   create-highway-from infrastructure 1 [set weight 1] ]
+end
 
 ;-------------------------------------------------------------------------------------
 ; UPDATE-WEIGHTS:
@@ -220,27 +249,35 @@ if not free
 
 if any? other aircrafts with [xcor = px and ycor > py and ycor <= 5 + py]
   [let num-ac-north count aircrafts with [xcor = px and ycor > py and ycor <= 5 + py]
-   ask link [who] of self [who] of neighbor-north [set weight num-ac-north / weight-force + 1]
-  ]
+   ifelse local-road [who] of self [who] of neighbor-north != nobody
+      [ask local-road [who] of self [who] of neighbor-north [set weight num-ac-north / weight-force + 1]]
+      [ask highway [who] of self [who] of neighbor-north [set weight num-ac-north / weight-force + 1]]
+    ]
 
-if any? other aircrafts with [xcor > px and xcor < 5 + px and ycor = py]
-  [let num-ac-east count aircrafts with [xcor > px and xcor <= 5 + px and ycor = py]
-   ask link [who] of self [who] of neighbor-east [set weight num-ac-east  / weight-force + 1]
-  ]
+ if any? other aircrafts with [xcor > px and xcor < 5 + px and ycor = py]
+  [let num-ac-east count aircrafts with [xcor > px and xcor < 5 + px and ycor = py]
+   ifelse local-road [who] of self [who] of neighbor-east != nobody
+      [ask local-road [who] of self [who] of neighbor-east [set weight num-ac-east / weight-force + 1]]
+      [ask highway [who] of self [who] of neighbor-east [set weight num-ac-east / weight-force + 1]]
+    ]
 
 if any? other aircrafts with [xcor = px and ycor < py and ycor >= py - 5]
   [let num-ac-south count aircrafts with [xcor = px and ycor < py and ycor >= py - 5]
-   ask link [who] of self [who] of neighbor-south [set weight num-ac-south  / weight-force + 1]
-  ]
+   ifelse local-road [who] of self [who] of neighbor-south != nobody
+      [ask local-road [who] of self [who] of neighbor-south [set weight num-ac-south / weight-force + 1]]
+      [ask highway [who] of self [who] of neighbor-south [set weight num-ac-south / weight-force + 1]]
+    ]
 
-if any? other aircrafts with [xcor > px and xcor <= px - 5 and ycor = py]
-  [let num-ac-west count aircrafts with [xcor > px and xcor <= px - 5 and ycor = py]
-   ask link [who] of self [who] of neighbor-west [set weight num-ac-west  / weight-force + 1]
-  ]
+if any? other aircrafts with [xcor < px and xcor > 5 - px and ycor = py]
+  [let num-ac-west count aircrafts with [xcor = px and ycor < py and ycor >= py - 5]
+   ifelse local-road [who] of self [who] of neighbor-west != nobody
+      [ask local-road [who] of self [who] of neighbor-west [set weight num-ac-west / weight-force + 1]]
+      [ask highway [who] of self [who] of neighbor-west [set weight num-ac-west / weight-force + 1]]
+    ]
   ]
 end
 
-to update-weights-to-traffic
+to update-weights-leading-to-congested-areas
 
   if not free
   [let waiting-aircrafts aircrafts in-radius 30 with [free = false and last-infra != nobody]
@@ -254,7 +291,7 @@ to update-weights-to-traffic
         [ask myself
           [let path-to-traffic nw:path-to [last-infra] of myself
             foreach sort path-to-traffic [the-link ->
-              ask the-link [set weight 1.7]]
+              ask the-link [set weight 1.5]]
         ]]
 
         any? other-aircraft with [free = false]
@@ -277,13 +314,19 @@ end
 to update-weights-for-symmetry
   if not free
   [ifelse count aircrafts with [xcor > 0 and free = false] > count aircrafts with [xcor < 0 and free = false]
-  [ask link [who] of self [who] of neighbor-east [set weight 1.5]]
-  [ask link [who] of self [who] of neighbor-west [set weight 1.5]]
+  [ifelse local-road [who] of self [who] of neighbor-east != nobody
+      [ask local-road [who] of self [who] of neighbor-east [set weight 1.5]]
+      [ask highway [who] of self [who] of neighbor-east [set weight 1.5]]
+    ]
+  [ifelse local-road [who] of self [who] of neighbor-west != nobody
+      [ask local-road [who] of self [who] of neighbor-west [set weight 1.5]]
+      [ask highway [who] of self [who] of neighbor-west [set weight 1.5]]
+    ]
   ]
 end
 
 to update-weights-global
-ask infrastructures [update-weights-to-traffic]
+ask infrastructures [update-weights-leading-to-congested-areas]
 ask infrastructures with [patch-x = 0 and patch-y >= -5][update-weights-for-symmetry]
 end
 ;-------------------------------------------------------------------------------------
@@ -292,10 +335,11 @@ end
 to go
   creating-aircraft                         ; Creates aircraft every certain amount of ticks
 
-  ask links [set weight 1]
+  ask local-roads [set weight 1]
+  ask highways [set weight 1]
 
   ;ask infrastructures [update-weights-local]
-  ;update-weights-global
+  update-weights-global
 
   ask infrastructures [find-path]                  ; Helper procedure: asks infrastructures to find the lowest weighted path over the weighted links
 
@@ -460,10 +504,15 @@ to find-neigboring-infrastructure                                     ; Identitf
   let px xcor
   let py ycor
 
-  set neighbor-north one-of link-neighbors with [xcor = px     and ycor = py + 5]   ;works with other infrastructures but to make it faster we search neighbors only
-  set neighbor-east  one-of link-neighbors with [xcor = px + 5 and ycor = py]
-  set neighbor-south one-of link-neighbors with [xcor = px     and ycor = py - 5]
-  set neighbor-west  one-of link-neighbors with [xcor = px - 5 and ycor = py]
+  set neighbor-north one-of infrastructures with [xcor = px     and ycor = py + 5]   ;works with other infrastructures but to make it faster we search neighbors only
+  set neighbor-east  one-of infrastructures with [xcor = px + 5 and ycor = py]
+  set neighbor-south one-of infrastructures with [xcor = px     and ycor = py - 5]
+  set neighbor-west  one-of infrastructures with [xcor = px - 5 and ycor = py]
+
+;  set neighbor-north one-of link-neighbors with [xcor = px     and ycor = py + 5]   ;works with other infrastructures but to make it faster we search neighbors only
+;  set neighbor-east  one-of link-neighbors with [xcor = px + 5 and ycor = py]
+;  set neighbor-south one-of link-neighbors with [xcor = px     and ycor = py - 5]
+;  set neighbor-west  one-of link-neighbors with [xcor = px - 5 and ycor = py]
 end
 
 to find-nearest-aircraft                                             ; Finds nearest aircraft to check for collision
@@ -723,7 +772,7 @@ weight-force
 weight-force
 1
 10
-4.0
+3.0
 1
 1
 NIL

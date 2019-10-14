@@ -663,8 +663,8 @@ GRAPHICS-WINDOW
 18
 -16
 16
-0
-0
+1
+1
 1
 ticks
 30.0
@@ -764,7 +764,7 @@ SWITCH
 173
 stochastic-departure
 stochastic-departure
-0
+1
 1
 -1000
 

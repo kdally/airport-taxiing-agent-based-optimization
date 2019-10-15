@@ -59,6 +59,7 @@ globals [
   interarrival-time-list                         ; List of all interarrival-times
   travel-time-list                               ; List of all travel times of aircraft
   waiting-time-list                              ; List of all waiting times of aircraft
+  link-list
   ;planning
 ]
 
@@ -350,6 +351,8 @@ to go
   ;ask highways [if weight != 1 [show weight]]
   ;ask local-roads [if weight != 1 [show weight]]
 
+  link-traffic
+
   tick                                      ; Adds one tick everytime the go procedure is performed
 
 end
@@ -467,7 +470,120 @@ end
 ;--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ; HELPER PROCEDURES
 ; Procedures called upon in the above procedures.
+to link-traffic
+  ; hardcoding it, possible to add lable to all links in the interface to be able to see clearly which link has which number
+  ; bottom to top, left to right
+  let traffic-link-1 count aircrafts with [pycor >= -10 and pycor < -5 and pxcor = -5]
+  let traffic-link-2 count aircrafts with [pycor >= -10 and pycor < -5 and pxcor = 0]
+  let traffic-link-3 count aircrafts with [pycor >= -10 and pycor < -5 and pxcor = 5]
 
+  let traffic-link-4 count aircrafts with [pycor = -5 and pxcor >= -15 and pxcor < -10]
+  let traffic-link-5 count aircrafts with [pycor = -5 and pxcor >= -10 and pxcor < -5]
+  let traffic-link-6 count aircrafts with [pycor = -5 and pxcor >= -5 and pxcor < 0]
+  let traffic-link-7 count aircrafts with [pycor = -5 and pxcor >= 0 and pxcor < 5]
+  let traffic-link-8 count aircrafts with [pycor = -5 and pxcor >= 5 and pxcor < 10]
+  let traffic-link-9 count aircrafts with [pycor = -5 and pxcor >= 10 and pxcor <= 15]
+
+  let traffic-link-10 count aircrafts with [pycor >= -5 and pycor < 0 and pxcor = -15]
+  let traffic-link-11 count aircrafts with [pycor >= -5 and pycor < 0 and pxcor = -10]
+  let traffic-link-12 count aircrafts with [pycor >= -5 and pycor < 0 and pxcor = -5]
+  let traffic-link-13 count aircrafts with [pycor >= -5 and pycor < 0 and pxcor = 0]
+  let traffic-link-14 count aircrafts with [pycor >= -5 and pycor < 0 and pxcor = 5]
+  let traffic-link-15 count aircrafts with [pycor >= -5 and pycor < 0 and pxcor = 10]
+  let traffic-link-16 count aircrafts with [pycor >= -5 and pycor < 0 and pxcor = 15]
+
+  let traffic-link-17 count aircrafts with [pycor = 0 and pxcor >= -15 and pxcor < -10]
+  let traffic-link-18 count aircrafts with [pycor = 0 and pxcor >= -10 and pxcor < -5]
+  let traffic-link-19 count aircrafts with [pycor = 0 and pxcor >= -5 and pxcor < 0]
+  let traffic-link-20 count aircrafts with [pycor = 0 and pxcor >= 0 and pxcor < 5]
+  let traffic-link-21 count aircrafts with [pycor = 0 and pxcor >= 5 and pxcor < 10]
+  let traffic-link-22 count aircrafts with [pycor = 0 and pxcor >= 10 and pxcor <= 15]
+
+  let traffic-link-23 count aircrafts with [pycor >= 0 and pycor < 5 and pxcor = -15]
+  let traffic-link-24 count aircrafts with [pycor >= 0 and pycor < 5 and pxcor = -10]
+  let traffic-link-25 count aircrafts with [pycor >= 0 and pycor < 5 and pxcor = -5]
+  let traffic-link-26 count aircrafts with [pycor >= 0 and pycor < 5 and pxcor = 0]
+  let traffic-link-27 count aircrafts with [pycor >= 0 and pycor < 5 and pxcor = 5]
+  let traffic-link-28 count aircrafts with [pycor >= 0 and pycor < 5 and pxcor = 10]
+  let traffic-link-29 count aircrafts with [pycor >= 0 and pycor < 5 and pxcor = 15]
+
+  let traffic-link-30 count aircrafts with [pycor = 5 and pxcor >= -15 and pxcor < -10]
+  let traffic-link-31 count aircrafts with [pycor = 5 and pxcor >= -10 and pxcor < -5]
+  let traffic-link-32 count aircrafts with [pycor = 5 and pxcor >= -5 and pxcor < 0]
+  let traffic-link-33 count aircrafts with [pycor = 5 and pxcor >= 0 and pxcor < 5]
+  let traffic-link-34 count aircrafts with [pycor = 5 and pxcor >= 5 and pxcor < 10]
+  let traffic-link-35 count aircrafts with [pycor = 5 and pxcor >= 10 and pxcor <= 15]
+
+  let traffic-link-36 count aircrafts with [pycor >= 5 and pycor <= 10 and pxcor = -15]
+  let traffic-link-37 count aircrafts with [pycor >= 5 and pycor <= 10 and pxcor = 15]
+
+
+  set link-list []
+
+  set link-list lput traffic-link-1 link-list
+  set link-list lput traffic-link-2 link-list
+  set link-list lput traffic-link-3 link-list
+
+  set link-list lput traffic-link-4 link-list
+  set link-list lput traffic-link-5 link-list
+  set link-list lput traffic-link-6 link-list
+  set link-list lput traffic-link-7 link-list
+  set link-list lput traffic-link-8 link-list
+  set link-list lput traffic-link-9 link-list
+
+  set link-list lput traffic-link-10 link-list
+  set link-list lput traffic-link-11 link-list
+  set link-list lput traffic-link-12 link-list
+  set link-list lput traffic-link-13 link-list
+  set link-list lput traffic-link-14 link-list
+  set link-list lput traffic-link-15 link-list
+  set link-list lput traffic-link-16 link-list
+
+  set link-list lput traffic-link-17 link-list
+  set link-list lput traffic-link-18 link-list
+  set link-list lput traffic-link-19 link-list
+  set link-list lput traffic-link-20 link-list
+  set link-list lput traffic-link-21 link-list
+  set link-list lput traffic-link-22 link-list
+
+  set link-list lput traffic-link-23 link-list
+  set link-list lput traffic-link-24 link-list
+  set link-list lput traffic-link-25 link-list
+  set link-list lput traffic-link-26 link-list
+  set link-list lput traffic-link-27 link-list
+  set link-list lput traffic-link-28 link-list
+  set link-list lput traffic-link-29 link-list
+
+  set link-list lput traffic-link-30 link-list
+  set link-list lput traffic-link-31 link-list
+  set link-list lput traffic-link-32 link-list
+  set link-list lput traffic-link-33 link-list
+  set link-list lput traffic-link-34 link-list
+  set link-list lput traffic-link-35 link-list
+
+  set link-list lput traffic-link-36 link-list
+  set link-list lput traffic-link-37 link-list
+
+  let max-list max(link-list)
+  let max-list-index position max-list link-list + 1
+
+  ;print(link-list)
+
+  print (word "Link " max-list-index " has the highest amount of traffic: " max-list " aircraft.")
+
+
+
+  ;link-set [my-links] of infrastructures
+
+  ;print link-set links-own
+
+  ;foreach links
+  ;[
+  ;let traffic-count count aircrafts with (pycor < [end1] of link)
+  ;set traffic-on-link traffic-count
+  ;]
+
+end
 
 to runway-usage                                                       ; to prevent two aircraft of using the runway at the same time
   ; TOO EXTENSIVE WAY: DISREGARD

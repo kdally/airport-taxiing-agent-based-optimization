@@ -42,23 +42,26 @@ infrastructures-own [
   neighbor-east                                ; The neighboring infrastructure directly to the east of infrastructure A (assuming map pointing north)
   neighbor-south                               ; The neighboring infrastructure directly to the south of infrastructure A (assuming map pointing north)
   neighbor-west                                ; The neighboring infrastructure directly to the west of infrastructure A (assuming map pointing north)
+  key-waypoint                                 ; If this value reports true, the infrastructure is asked to change the weight of its adjacent links for the local observation-based planning
+  aircrafts-cardinal
+  neighbor-cardinal
 ]
 
 globals [
-  ticks-generator                                ; Determines per how many ticks a new aircraft is generated
-  counter-collisions                             ; Counts the total amount of collisions
-  random-generator-1                             ; Generates random tick at which new aircraft is generated at gate 1 (most left)
-  random-generator-2                             ; Generates random tick at which new aircraft is generated at gate 2 (center)
-  random-generator-3                             ; Generates random tick at which new aircraft is generated at gate 3 (most right)
-  integer-1                                      ; Reports "true" if new aircraft must be generated at gate 1
-  integer-2                                      ; Reports "true" if new aircraft must be generated at gate 2
-  integer-3                                      ; Reports "true" if new aircraft must be generated at gate 3
-  arrived-left                                   ; Amount of aircraft arrived at left runway
-  arrived-right                                  ; Amount of aircraft arrived at right runway
+  ticks-generator                              ; Determines per how many ticks a new aircraft is generated
+  counter-collisions                           ; Counts the total amount of collisions
+  random-generator-1                           ; Generates random tick at which new aircraft is generated at gate 1 (most left)
+  random-generator-2                           ; Generates random tick at which new aircraft is generated at gate 2 (center)
+  random-generator-3                           ; Generates random tick at which new aircraft is generated at gate 3 (most right)
+  integer-1                                    ; Reports "true" if new aircraft must be generated at gate 1
+  integer-2                                    ; Reports "true" if new aircraft must be generated at gate 2
+  integer-3                                    ; Reports "true" if new aircraft must be generated at gate 3
+  arrived-left                                 ; Amount of aircraft arrived at left runway
+  arrived-right                                ; Amount of aircraft arrived at right runway
   ac-generated
-  interarrival-time-list                         ; List of all interarrival-times
-  travel-time-list                               ; List of all travel times of aircraft
-  waiting-time-list                              ; List of all waiting times of aircraft
+  interarrival-time-list                       ; List of all interarrival-times
+  travel-time-list                             ; List of all travel times of aircraft
+  waiting-time-list                            ; List of all waiting times of aircraft
   link-list
 ]
 
@@ -77,17 +80,18 @@ extensions [
 to setup
   clear-all
 
-  ask patches [ set pcolor green + 1 ]                  ; Make all patches green, except:
-  setup-roads                                           ; patches with special patch-types: roads, gates, and runways
-  infrastructure-placing                                ; Place infrastructure agents on every intersection
-  creating-links                                        ; Create links between infrastructre agents
-  ask infrastructures [find-neigboring-infrastructure]  ; Helper procedure: make each infrastructure agent find its neighboring infrastructure agents
+  ask patches [ set pcolor green + 1 ]                                                  ; Make all patches green, except:
+  setup-roads                                                                           ; patches with special patch-types: roads, gates, and runways
+  infrastructure-placing                                                                ; Place infrastructure agents on every intersection
+  creating-links                                                                        ; Create links between infrastructre agents
+  ask infrastructures [find-neigboring-infrastructure]                                  ; Helper procedure: make each infrastructure agent find its neighboring infrastructure agents
   set-default-shape aircrafts "airplane"
   set-default-shape infrastructures "circle"
-  set interarrival-time-list []                         ; Initialize interarrival-time-list
-  set travel-time-list []                               ; Initialize travel-time-list
-  set waiting-time-list []                              ; Initialize waiting-time-list
-  ask infrastructures [find-patches]                    ; Helper procedure that finds Xcor and Ycor of infrastructures
+  set interarrival-time-list []                                                         ; Initialize interarrival-time-list
+  set travel-time-list []                                                               ; Initialize travel-time-list
+  set waiting-time-list []                                                              ; Initialize waiting-time-list
+  ask infrastructures [find-patches]                                                    ; Helper procedure that finds Xcor and Ycor of infrastructures
+  ask infrastructures with [patch-type = "waypoint"] [determine-if-key]                 ; Helper procedure that determines if the waypoint infrastructure shoudl update its weights for the local observation-based planning
   reset-ticks
 end
 
@@ -213,8 +217,8 @@ end
 
 to creating-links
   ifelse structural-coordination
-  [creating-bi/directional-links]                   ; Create bidirectional and directional links between infrastructre agents
-  [creating-bidirectional-links]                    ; Create bidirectional links between all infrastructre agents
+  [creating-bi/directional-links]                                                                                               ; Create bidirectional and directional links between infrastructre agents
+  [creating-bidirectional-links]                                                                                                ; Create bidirectional links between all infrastructre agents
 end
 
 
@@ -223,9 +227,9 @@ end
 to creating-bidirectional-links
 ask infrastructures at-points [[15 5] [10 5] [5 5][0 5] [-5 5] [-10 5] [-15 5]
     [15 0] [10 0] [5 0][0 0] [-5 0] [-10 0] [-15 0] [15 -5] [10 -5] [5 -5][0 -5]
-    [-5 -5] [-10 -5] [-15 -5] ]                                                        ;Create the links.
-   [create-local-roads-with other infrastructures in-radius 5 [set weight 1]]          ;Bidirectional links are defined as local roads. The standard weight of a link is 1
-ask infrastructure 26                                                                  ;The final goal infrastructure 26 has specific links
+    [-5 -5] [-10 -5] [-15 -5] ]                                                                                                 ;Create the links.
+   [create-local-roads-with other infrastructures in-radius 5 [set weight 1]]                                                   ;Bidirectional links are defined as local roads. The standard weight of a link is 1
+ask infrastructure 26                                                                                                           ;The final goal infrastructure 26 has specific links
    [create-local-road-with infrastructure 0 [set weight 1]
     create-local-road-with infrastructure 1 [set weight 1]]
 end
@@ -235,21 +239,29 @@ end
 
 to creating-bi/directional-links
 
-  let main-infra infrastructures with [abs(xcor) = 15 or ycor = -5 and abs(xcor) >= 5]                                          ; Identifies the main infrastrucutre agents to be connected by highways
+  let main-infra infrastructures with [abs(xcor) = 15 or ycor = -10 or (ycor = -5 and abs(xcor) >= 0)                           ; Identifies the main infrastrucutre agents to be connected by highways
+    or (ycor = 0 and abs(xcor) >= 5) or (ycor = 5 and abs(xcor) >= 10)]
   let secondary-infra infrastructures with [not member? self highways and ycor != 15 and ycor != -10]                           ; Identifies the secondary infrastrucutre agents to be connected by local roads
 
   ask secondary-infra                                                                                                           ; Creates bidirectional local roads between secondary infrastrucutre agents and all their neighboring agents
   [create-local-roads-with other infrastructures in-radius 5 [ set weight 1 ]]                                                  ; The standard weight of a link is 1
 
   ask main-infra                                                                                                                ; Creates undirectional highways between main infrastrucutre agents
-  [let py ycor                                                                                                                  ; Stores the coordinates of the main infrastrucutre agent A
+  [set color 4
+   let py ycor                                                                                                                  ; Stores the coordinates of the main infrastrucutre agent A
    let px xcor
 
-   if any? main-infra with [xcor = px and ycor = py + 5]                                                                        ; Checks the presence of a neighboring main infrastrucutre agent north of agent A to create a link with
+   if any? main-infra with [xcor = px and ycor = py + 5 ]                                                                        ; Checks the presence of a neighboring main infrastrucutre agent north of agent A to create a link with
    [create-highway-to one-of main-infra with [xcor = px and ycor = py + 5][ set weight 1]]                                      ; The standard weight of a link is 1
 
-   if any? main-infra with [abs(xcor) = abs(px) + 5 and ycor = py and xcor * px > 0]                                            ; Checks the presence of a neighboring main infrastrucutre agent west (east) of agent A if agent A is on the left (right) half plane
-   [create-highway-to one-of main-infra with [abs(xcor) = abs(px) + 5 and ycor = py and xcor * px > 0][ set weight 1]]          ; The standard weight of a link is 1
+   if any? main-infra with [abs(xcor) = abs(px) + 5 and ycor = py and xcor * px > 0 and ycor != -10]                                            ; Checks the presence of a neighboring main infrastrucutre agent west (east) of agent A if agent A is on the left (right) half plane
+   [create-highway-to one-of main-infra with [abs(xcor) = abs(px) + 5 and ycor = py and xcor * px > 0 and ycor != -10][ set weight 1]]          ; The standard weight of a link is 1
+
+   if any? main-infra with [abs(xcor) = 5 and ycor = py  and py = -5 and px = 0]
+  [create-highways-to main-infra with [abs(xcor) = 5 and ycor = -5][ set weight 1]]          ; The standard weight of a link is 1
+
+   set color 3
+   ask highways [set color 3]
   ]
 
   ask infrastructure 26                                                                                                         ; The final goal infrastructure 26 has specific highway links
@@ -263,103 +275,93 @@ end
 ; UPDATE-WEIGHTS: To choose observation strategy to update weights of links
 
 to update-weights
-  (ifelse planning = "Global"                               ; Enforces planning based on global observations if activated
-     [ask infrastructures [update-weights-global-obs]]
-   planning = "Local"                                       ; Enforces planning based on local observations if activated
-     [ask infrastructures [update-weights-local-obs]]
-   planning = "None" [])                                    ; Enforces no planning if no planning is activated
+  (ifelse planning = "Global"                                                                              ; Enforces planning based on global observations if activated
+    [ask infrastructures with [patch-type = "waypoint"] [update-weights-global-obs]]
+   planning = "Local"                                                                                      ; Enforces planning based on local observations if activated
+    [ask infrastructures with [key-waypoint = true] [update-weights-local-obs]]
+   planning = "None" [])                                                                                   ; Enforces no planning if no planning is activated
 end
 
 
 ; UPDATE-WEIGHTS-LOCAL-OBS: To change weights of links based on local observations
 
 to update-weights-local-obs
-if not empty                                                                                               ; Initiates procedure if an aircraft is present on infrastructure agent A
-[let px xcor                                                                                               ; Stores the coordinates of the infrastrucutre agent A
- let py ycor
+let px xcor                                                                                                ; Stores the coordinates of the infrastrucutre agent A
+let py ycor
 
-if any? other aircrafts with [xcor = px and ycor > py and ycor <= 5 + py]                                  ; Checks if any aicraft is present on its northern link. If at least one is present, initiate procedure
-  [let num-ac-north count aircrafts with [xcor = px and ycor > py and ycor <= 5 + py]                      ; Counts how many aicraft are present on its northern link
-   ifelse local-road [who] of self [who] of neighbor-north != nobody                                       ; Checks the breed of northern link, update the right type of link
-      [ask local-road [who] of self [who] of neighbor-north [set weight num-ac-north / 6 + 1]]             ; Increases the northern link weight based on the number of aircraft present on that link
-      [ask highway [who] of self [who] of neighbor-north [set weight num-ac-north / 6 + 1]]
-    ]
+let aircrafts-north aircrafts with [xcor = px and ycor > py and ycor < 5 + py]
+let aircrafts-east aircrafts with [xcor > px and xcor < 5 + px and ycor = py]
+let aircrafts-south aircrafts with [xcor = px and ycor < py and ycor > py - 5]
+let aircrafts-west aircrafts with [xcor < px and xcor > px - 5 and ycor = py]
 
- if any? other aircrafts with [xcor > px and xcor < 5 + px and ycor = py]                                  ; Checks if any aicraft is present on its eastern link. If at least one is present, initiate procedure
-  [let num-ac-east count aircrafts with [xcor > px and xcor < 5 + px and ycor = py]                        ; Counts how many aicraft are present on its eastern link
-   ifelse local-road [who] of self [who] of neighbor-east != nobody                                        ; Checks the breed of eastern link, update the right type of link
-      [ask local-road [who] of self [who] of neighbor-east [set weight num-ac-east / 6 + 1]]               ; Increases the eastern link weight based on the number of aircraft present on that link
-      [ask highway [who] of self [who] of neighbor-east [set weight num-ac-east / 6 + 1]]
-    ]
+set aircrafts-cardinal  aircrafts-north
+set neighbor-cardinal   neighbor-north
+update-link-weight-in-cardinal-direction
 
-if any? other aircrafts with [xcor = px and ycor < py and ycor >= py - 5]                                  ; Checks if any aicraft is present on its southern link. If at least one is present, initiate procedure
-  [let num-ac-south count aircrafts with [xcor = px and ycor < py and ycor >= py - 5]                      ; Counts how many aicraft are present on its southern link
-   ifelse local-road [who] of self [who] of neighbor-south != nobody                                       ; Checks the breed of southern link, update the right type of link
-      [ask local-road [who] of self [who] of neighbor-south [set weight num-ac-south / 6 + 1]]             ; Increases the southern link weight based on the number of aircraft present on that link
-      [ask highway [who] of self [who] of neighbor-south [set weight num-ac-south / 6 + 1]]
-    ]
+set aircrafts-cardinal  aircrafts-east
+set neighbor-cardinal   neighbor-east
+update-link-weight-in-cardinal-direction
 
-if any? other aircrafts with [xcor < px and xcor > 5 - px and ycor = py]                                   ; Checks if any aicraft is present on its western link. If at least one is present, initiate procedure
-  [let num-ac-west count aircrafts with [xcor = px and ycor < py and ycor >= py - 5]                       ; Counts how many aicraft are present on its western link
-   ifelse local-road [who] of self [who] of neighbor-west != nobody                                        ; Checks the breed of western link, update the right type of link
-      [ask local-road [who] of self [who] of neighbor-west [set weight num-ac-west / 6 + 1]]               ; Increases the western link weight based on the number of aircraft present on that link
-      [ask highway [who] of self [who] of neighbor-west [set weight num-ac-west / 6 + 1]]
-    ]
-  ]
+set aircrafts-cardinal  aircrafts-south
+set neighbor-cardinal   neighbor-south
+update-link-weight-in-cardinal-direction
+
+set aircrafts-cardinal  aircrafts-west
+set neighbor-cardinal   neighbor-west
+update-link-weight-in-cardinal-direction
+
 end
 
 
-; UPDATE-WEIGHTS-GLOBAL-OBS: To choose observation strategy to update weights
+to update-link-weight-in-cardinal-direction
+  if any? aircrafts-cardinal                                   ; Checks if any aicraft is present on its western adjacent link. If at least one is present, initiate procedure
+  [let aircrafts-cardinal-free count aircrafts-cardinal with [free = true]                        ; Counts how many aicraft are present on that link
+   let aircrafts-cardinal-waiting count aircrafts-cardinal with [free = false]
+   let weight-factor (aircrafts-cardinal-free + 1.5 * aircrafts-cardinal-waiting) / 4
+   ifelse local-road  [who] of self [who] of neighbor-cardinal != nobody                                       ; Checks the breed that link, update the right link breed
+      [ask local-road [who] of self [who] of neighbor-cardinal [set weight weight-factor + 1]]               ; Increases that link's weight based on the number of aircraft present on that link
+      [ask highway    [who] of self [who] of neighbor-cardinal [set weight weight-factor + 1]]
+  ]
+  end
+
+
+; UPDATE-WEIGHTS-GLOBAL-OBS: To change weights of links based on global observations
 
 to update-weights-global-obs
+let waiting-aircrafts aircrafts in-radius 30 with [free = false and last-infra != nobody]                        ; Count how many aircraft are currently waiting on the field, excluding the ones who have not reached a waypoint yet
+ifelse any? waiting-aircrafts                                                                               ; If aircraft with such conditions are present, initiate procedure
+   [foreach sort-on [waiting-time] waiting-aircrafts [the-waiting-aircraft ->
+    let path-to-congestion nw:path-to [last-infra] of the-waiting-aircraft
+    if not empty? path-to-congestion
+       [let weight-factor 1 / ( [distance myself] of the-waiting-aircraft + 1) * [waiting-time] of the-waiting-aircraft / max [waiting-time] of waiting-aircrafts
+        show weight-factor
+          ask first path-to-congestion [set weight 1 + weight-factor]]
 
-  if not empty
-     [let waiting-aircrafts aircrafts in-radius 30 with [free = false and last-infra != nobody]
-      ifelse any? waiting-aircrafts
-         [foreach sort-on [waiting-time] waiting-aircrafts [the-waiting-aircraft ->
-          let path-to-congestion nw:weighted-path-to [last-infra] of the-waiting-aircraft "weight"
-          if not empty? path-to-congestion
-             [let weight-factor [waiting-time] of the-waiting-aircraft / max [waiting-time] of waiting-aircrafts
-              ask first path-to-congestion [set weight 1 + 0.6 * weight-factor]
-              ]]
-        ]
-
-         [let px xcor
-          let py ycor
-
-          if aircrafts != nobody and abs(px) != 15 and py != -10
-          [let aircraft-density-east count aircrafts with [xcor > px] / count infrastructures with [xcor > px]
-          let aircraft-density-west count aircrafts with [xcor <= px] / count infrastructures with [xcor <= px]
-
-          ifelse aircraft-density-east > aircraft-density-west
-          [ifelse local-road [who] of self [who] of neighbor-east != nobody
-            [ask local-road [who] of self [who] of neighbor-east [set weight 1.5]]
-            [ask highway [who] of self [who] of neighbor-east [set weight 1.5]]
-          ]
-          [ifelse local-road [who] of self [who] of neighbor-west != nobody
-            [ask local-road [who] of self [who] of neighbor-west [set weight 1.5]]
-            [ask highway [who] of self [who] of neighbor-west [set weight 1.5]]
-          ]
-          ]
         ]
   ]
+   [let px xcor
+    let py ycor
+
+    if aircrafts != nobody and abs(px) != 15
+    [let aircraft-density-east count aircrafts with [xcor > px] / count infrastructures with [xcor > px]
+    let aircraft-density-west count aircrafts with [xcor <= px] / count infrastructures with [xcor <= px]
+
+    (ifelse aircraft-density-east > aircraft-density-west
+    [ifelse local-road [who] of self [who] of neighbor-east != nobody
+      [ask local-road [who] of self [who] of neighbor-east [set weight 1.2]]
+      [ask highway [who] of self [who] of neighbor-east [set weight 1.2]]
+    ]
+    aircraft-density-east < aircraft-density-west
+     [ifelse local-road [who] of self [who] of neighbor-west != nobody
+      [ask local-road [who] of self [who] of neighbor-west [set weight 1.2]]
+      [ask highway [who] of self [who] of neighbor-west [set weight 1.2]]
+    ]
+      [])
+    ]
+  ]
+
 
 end
-
-;to update-weights-for-symmetry
-;  if not empty
-;  [ifelse count aircrafts with [xcor > 0 and free = false] > count aircrafts with [xcor < 0 and free = false]
-;  [ifelse local-road [who] of self [who] of neighbor-east != nobody
-;      [ask local-road [who] of self [who] of neighbor-east [set weight 1.5]]
-;      [ask highway [who] of self [who] of neighbor-east [set weight 1.5]]
-;    ]
-;  [ifelse local-road [who] of self [who] of neighbor-west != nobody
-;      [ask local-road [who] of self [who] of neighbor-west [set weight 1.5]]
-;      [ask highway [who] of self [who] of neighbor-west [set weight 1.5]]
-;    ]
-;  ]
-;end
-
 
 
 ;-------------------------------------------------------------------------------------
@@ -603,7 +605,7 @@ to link-traffic
 
   ;print(link-list)
 
-  print (word "Link " max-list-index " has the highest amount of traffic: " max-list " aircraft.")
+  ;print (word "Link " max-list-index " has the highest amount of traffic: " max-list " aircraft.")
 
 
 
@@ -754,6 +756,12 @@ to check-empty                                                                  
   ifelse any? aircrafts with [xcor = px and ycor = py]                                 ; If any aicraft currently has the same coordinates as agent, agent A is not empty
   [set empty false]
   [set empty true]                                                                     ; Otherwise agent A is empty
+end
+
+to determine-if-key
+  ifelse (ycor = -5 and xcor mod 10 = 0) or (ycor = 0 and xcor mod 10 = 5)  or (ycor = 5 and xcor mod 10 = 0)
+     [set key-waypoint true]
+     [set key-waypoint false]
 end
 
 
@@ -914,7 +922,7 @@ SWITCH
 198
 stochastic-departure
 stochastic-departure
-0
+1
 1
 -1000
 
@@ -963,7 +971,7 @@ CHOOSER
 planning
 planning
 "Global" "Local" "None"
-0
+1
 
 SWITCH
 0
@@ -972,7 +980,7 @@ SWITCH
 391
 structural-coordination
 structural-coordination
-0
+1
 1
 -1000
 

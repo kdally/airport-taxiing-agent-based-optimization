@@ -559,7 +559,7 @@ to link-traffic
   let traffic-link-37 count aircrafts with [pycor >= 5 and pycor <= 10 and pxcor = 15]
 
 
-  set link-list [] ;reinitialize link-list
+  set link-list [] I Moved it to SETUP
 
   set link-list lput traffic-link-1 link-list
   set link-list lput traffic-link-2 link-list
@@ -1047,7 +1047,7 @@ ticks-generator
 ticks-generator
 2
 7
-4.0
+3.0
 1
 1
 ticks btw a/c

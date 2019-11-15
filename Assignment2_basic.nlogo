@@ -27,9 +27,6 @@ aircrafts-own [
   travel-time                                  ; Describes how long an aircraft is on the road
   waiting-time                                 ; Amount of time that aircraft has waited in total when travelling from gate to runway
   last-infra                                   ; Last infrastructure agent that aircraft has passed
-  bid                                          ; The quantatity bid by an aircraft in an auction
-  budget                                       ; The remaining budget to be used by an aircraft to bid, in order to potentially be granted priority
-  travel-distance                              ; Total distance travelled by an aircraft
 
 ]
 
@@ -69,6 +66,7 @@ globals [
   link-list
   reds
   occupied-links
+  aircraft-waiting-list
 ]
 
 
@@ -629,6 +627,7 @@ to link-traffic
 
   set link-list []
 
+
   set link-list lput traffic-link-1 link-list
   set link-list lput traffic-link-2 link-list
   set link-list lput traffic-link-3 link-list
@@ -865,6 +864,7 @@ to calculate-interarrival
 
      ]
 end
+; COUNT-WAITING-AIRCRAFT: Count how many aircraft are currently waiting
 @#$#@#$#@
 GRAPHICS-WINDOW
 210

@@ -65,8 +65,8 @@ globals [
   rythm-centre
   rythm-right
   aircraft-waiting-list
-  busy-links-list
-  busy-links-count
+  occupied-links-list
+  occupied-links-count
 ]
 
 
@@ -95,7 +95,7 @@ to setup
   set travel-time-list []                                                               ; Initialize travel-time-list
   set waiting-time-list []                                                              ; Initialize waiting-time-list
   set aircraft-waiting-list []                                                          ; Initialize aircraft-waiting-list
-  set busy-links-list []                                                                ; Initialize  busy-links-list
+  set occupied-links-list []                                                                ; Initialize  occupied-links-list
   set link-list []                                                                      ; Initialize  link-list
   ask infrastructures [find-patches]                                                    ; Helper procedure that finds Xcor and Ycor of infrastructures
   ask infrastructures with [patch-type = "waypoint"] [determine-if-key]                 ; Helper procedure that determines if the waypoint infrastructure shoudl update its weights for the local observation-based planning                                                               ; Helper procedure that determines in how many ticks one new aircraft is generated
@@ -610,8 +610,8 @@ to link-traffic
 
 
 
-  set busy-links-count length remove 0 link-list / 37 * 100
-  set busy-links-list lput busy-links-count busy-links-list
+  set occupied-links-count length remove 0 link-list / 37 * 100
+  set occupied-links-list lput occupied-links-count occupied-links-list
 
 
 
@@ -1089,7 +1089,7 @@ PLOT
 177
 1159
 327
-Histogram Occupied Links Count
+Occupied Links
 Time
 % Links
 0.0
@@ -1100,8 +1100,8 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot busy-links-count"
-"pen-1" 1.0 0 -7500403 true "" "if not empty? busy-links-list\n[plot mean busy-links-list]\n"
+"default" 1.0 0 -16777216 true "" "plot occupied-links-count"
+"pen-1" 1.0 0 -7500403 true "" "if not empty? occupied-links-list\n[plot mean occupied-links-list]\n"
 
 MONITOR
 958

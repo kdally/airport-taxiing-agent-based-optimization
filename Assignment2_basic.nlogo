@@ -36,7 +36,6 @@ infrastructures-own [
   patch-y                                      ; Ycor of the patch that infrastructure agent is on
   interarrival-time                            ; Time between two aircraft arriving at runway
   activated                                    ; Makes sure interarrival-time starts counting from first arriving aircraft at runway
-
   empty                                        ; If this value reports false, the infrastructure is currently occupied by an aircraft
   neighbor-north                               ; The neighboring infrastructure directly to the north of infrastructure A (assuming map pointing north)
   neighbor-east                                ; The neighboring infrastructure directly to the east of infrastructure A (assuming map pointing north)

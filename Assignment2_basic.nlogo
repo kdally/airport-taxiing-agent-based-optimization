@@ -27,6 +27,9 @@ aircrafts-own [
   travel-time                                  ; Describes how long an aircraft is on the road
   waiting-time                                 ; Amount of time that aircraft has waited in total when travelling from gate to runway
   last-infra                                   ; Last infrastructure agent that aircraft has passed
+  bid                                          ; The quantatity bid by an aircraft in an auction
+  budget                                       ; The remaining budget to be used by an aircraft to bid, in order to potentially be granted priority
+  travel-distance                              ; Total distance travelled by an aircraft
 
 ]
 
@@ -36,6 +39,7 @@ infrastructures-own [
   patch-y                                      ; Ycor of the patch that infrastructure agent is on
   interarrival-time                            ; Time between two aircraft arriving at runway
   activated                                    ; Makes sure interarrival-time starts counting from first arriving aircraft at runway
+
   empty                                        ; If this value reports false, the infrastructure is currently occupied by an aircraft
   neighbor-north                               ; The neighboring infrastructure directly to the north of infrastructure A (assuming map pointing north)
   neighbor-east                                ; The neighboring infrastructure directly to the east of infrastructure A (assuming map pointing north)
@@ -44,9 +48,11 @@ infrastructures-own [
   key-waypoint                                 ; If this value reports true, the infrastructure is asked to change the weight of its adjacent links for the local observation-based planning
   aircrafts-cardinal
   neighbor-cardinal
+  nearby-aircraft
 ]
 
 globals [
+  ticks-generator                              ; Determines per how many ticks a new aircraft is generated
   counter-collisions                           ; Counts the total amount of collisions
   random-generator-1                           ; Generates random tick at which new aircraft is generated at gate 1 (most left)
   random-generator-2                           ; Generates random tick at which new aircraft is generated at gate 2 (center)
@@ -61,12 +67,8 @@ globals [
   travel-time-list                             ; List of all travel times of aircraft
   waiting-time-list                            ; List of all waiting times of aircraft
   link-list
-  rythm-left
-  rythm-centre
-  rythm-right
-  aircraft-waiting-list
-  occupied-links-list
-  occupied-links-count
+  reds
+  occupied-links
 ]
 
 
@@ -94,11 +96,8 @@ to setup
   set interarrival-time-list []                                                         ; Initialize interarrival-time-list
   set travel-time-list []                                                               ; Initialize travel-time-list
   set waiting-time-list []                                                              ; Initialize waiting-time-list
-  set aircraft-waiting-list []                                                          ; Initialize aircraft-waiting-list
-  set occupied-links-list []                                                                ; Initialize  occupied-links-list
-  set link-list []                                                                      ; Initialize  link-list
   ask infrastructures [find-patches]                                                    ; Helper procedure that finds Xcor and Ycor of infrastructures
-  ask infrastructures with [patch-type = "waypoint"] [determine-if-key]                 ; Helper procedure that determines if the waypoint infrastructure shoudl update its weights for the local observation-based planning                                                               ; Helper procedure that determines in how many ticks one new aircraft is generated
+  ask infrastructures with [patch-type = "waypoint"] [determine-if-key]                 ; Helper procedure that determines if the waypoint infrastructure shoudl update its weights for the local observation-based planning
   reset-ticks
 end
 
@@ -224,7 +223,7 @@ end
 
 to creating-links
   ifelse structural-coordination
-  [creating-directional-and-bidirectional-links]                                                                                               ; Create bidirectional and directional links between infrastructre agents
+  [creating-bi/directional-links]                                                                                               ; Create bidirectional and directional links between infrastructre agents
   [creating-bidirectional-links]                                                                                                ; Create bidirectional links between all infrastructre agents
 end
 
@@ -244,7 +243,7 @@ end
 
 ; CREATING-BI/DIRECTIONAL-LINKS: Create bidirectional and directional links between infrastructure agents, defined as local roals and highways respectively
 
-to creating-directional-and-bidirectional-links
+to creating-bi/directional-links
 
   let main-infra infrastructures with [abs(xcor) = 15 or ycor = -10 or (ycor = -5 and abs(xcor) >= 0)                           ; Identifies the main infrastrucutre agents to be connected by highways
     or (ycor = 0 and abs(xcor) >= 5) or (ycor = 5 and abs(xcor) >= 10)]
@@ -341,7 +340,7 @@ ifelse any? waiting-aircrafts                                                   
     let path-to-congestion nw:path-to [last-infra] of the-waiting-aircraft
     if not empty? path-to-congestion
        [let weight-factor 1 / ( [distance myself] of the-waiting-aircraft + 1) * [waiting-time] of the-waiting-aircraft / max [waiting-time] of waiting-aircrafts
-        ask first path-to-congestion [set weight 1 + weight-factor]]
+          ask first path-to-congestion [set weight 1 + weight-factor]]
 
         ]
   ]
@@ -371,6 +370,41 @@ end
 
 
 ;-------------------------------------------------------------------------------------
+; EXECUTE AUCTION
+
+to perform-auction
+
+
+
+  set nearby-aircraft aircrafts in-radius 1.5                 ; Radius of 1.5 patches is considered in the negotiation area
+  if any? nearby-aircraft
+  [ask nearby-aircraft [
+    set free false
+    set bid waiting-time + random-float 0.1                   ; Add a random term such that there will always be one winner in case aircraft bid the same quantity
+    ifelse budget - bid < -100
+    [set bid 100 - budget - bid + random-float 0.1            ; The budget is empty, low bid assigned + random float
+    set budget -100]                                          ; Agent doesnt bid anything thus budget stays same (at depleted value)
+    [set budget budget - bid]
+    ]
+
+    ; In order to take into account that some aircraft are mroe important, a different initial budget can be assigned
+
+    let nearby-aircraft-list [self] of nearby-aircraft
+    let nearby-aircraft-list2 [bid] of nearby-aircraft
+
+
+
+    let winner nearby-aircraft with-max [bid]
+    ;print [bid] of winner
+    ask winner
+    [set free true]
+
+  ]
+
+end
+
+
+;-------------------------------------------------------------------------------------
 ; GO: Once everything has been set up correctly, a go command is used to start and continue the simulation
 
 to go
@@ -381,6 +415,9 @@ to go
 
   ask infrastructures [check-empty]         ; Checks if any aircraft is currently present on the infrastructure agent
   update-weights                            ; Updates link weights
+
+  if coordination-negotiation
+  [ask infrastructures [perform-auction]]  ; Perform auction at intersection between agents
 
   ask infrastructures [find-path]           ; Helper procedure: asks infrastructures to find the lowest weighted path over the weighted links
   ask aircrafts [find-other-aircraft]       ; Helper procedure: finds other aircraft close to aircraft to anticipate on these
@@ -393,8 +430,7 @@ to go
 ; Ask infrastructures to calculate and report the interarrival time when aircraft arrive on one of the runways
   ask infrastructures with [patch-type = "runwayleft" or patch-type = "runwayright"] [calculate-interarrival]
 
-  count-aircraft-waiting
-  link-traffic
+  link-traffic                              ; Gather information on link-traffic used for traffic efficiency analysis
 
   tick                                      ; Adds one tick everytime the go procedure is performed
 
@@ -404,9 +440,10 @@ end
 ;-------------------------------------------------------------------------------------
 ; ALL GO COMMANDS
 ; CREATING-AIRCRAFT: Generate new aircraft after certain amount of ticks
+;
 
 to creating-aircraft
-  make-ticks-generator
+  make-ticks-generator                                 ; Helper procedure: determines in how many ticks one new aircraft is generated
   find-integer                                         ; Helper procedure: chooses a random tick to generate an aircraft in, within the number of ticks as determined by ticks-generator
  if integer-1 = "true" and not any? aircrafts-on patch -5 -10 and (ac-generated - arrived-left - arrived-right) <= taxiway-capacity
   [ask patches with [((pxcor = -5) and (pycor = -10))] ; Integer-1 is the (random) tick in which an aircraft is created on the most left gate
@@ -437,26 +474,54 @@ end
 
 to check-free
   find-other-aircraft-1-2-3          ; Helper procedure that finds and identifies other aircraft that are within radius of 1.5 patches
-  set free true                    ; In principle aircraft is free to go further.
-
-; But if there is an aircraft nearby, it is checked if the next patch (x,y) of the other aircraft is equal to next patch (x,y) of
-; the aircraft itself. Furthermore it is checked if the next current patch (x,y) of the other aircraft is equal to the next patch (x,y)
-; of the aircraft itself. If one of this is true, free is set to false, which means that the aircraft may not continue.
-; For which of the two aircraft free is set to false depends on if the negotiation type.
-; Currently, the aircraft that has the lowest travel time, exlained below
-
-; COORDINATION by rules
-; if the travel time of the other-aircraft is more than its own travel time, free is set to false
-; as such, priority is given to the other agent as it has been traveling for a longer amount of time
-; a longer travel time indicates heavy traffic on the road taken by the other agent, it therefore makes sense to give way in order to reduce traffic density from the path taken by other agent
 
 
-; priority from right was deleted: "and ([heading] of other-aircraft-1 - heading = 270 or [heading] of other-aircraft-1 - heading = -90)" due to lower efficiency
+  runway-usage                                                                                                   ; Prevents two aircraft using entering the runway simultaneously
+  (ifelse coordination-rule = "Original rule"                                                                              ; Enforces coordination based on priority from the right if activated
+    [coordination-rules-original]
+   coordination-rule = "Travel-time rule"                                                                             ; Enforces coordination based on agent's total waiting time if activated
+    [coordination-rules-traveltime]
+   coordination-rule = "None"
+    [])
+end
 
-; runway-usage method prevents two aircraft using entering the runway simultaneously
-  runway-usage
+;-------------------------------------------------------------------------------------
+; COORDINATION BY RULES
+
+to coordination-rules-original                    ; Enforces the default coordination strategy (priority from the right)
+  set free true                      ; In principle aircraft is free to go further.
+  if other-aircraft-1 != nobody
+    [
+
+            if [following-patch-x] of other-aircraft-1 = following-patch-x and [following-patch-y] of other-aircraft-1 = following-patch-y  and ([heading] of other-aircraft-1 - heading = 270 or [heading] of other-aircraft-1 - heading = -90)
+          [set free false]
+
+            if [patch-x] of other-aircraft-1 = following-patch-x and [patch-y] of other-aircraft-1 = following-patch-y ;and ([free] of other-aircraft-1) = false
+                [set free false]
 
 
+      if other-aircraft-2 != nobody
+        [
+          if [following-patch-x] of other-aircraft-2 = following-patch-x and [following-patch-y] of other-aircraft-2 = following-patch-y and ([heading] of other-aircraft-2 - heading = 270 or [heading] of other-aircraft-2 - heading = -90)
+                      [set free false]
+                  if [patch-x] of other-aircraft-2 = following-patch-x and [patch-y] of other-aircraft-2 = following-patch-y ;and ([free] of other-aircraft-2) = false
+                      [set free false]
+
+
+           if other-aircraft-3 != nobody
+             [
+              if [following-patch-x] of other-aircraft-3 = following-patch-x and [following-patch-y] of other-aircraft-3 = following-patch-y and ([heading] of other-aircraft-3 - heading = 270 or [heading] of other-aircraft-3 - heading = -90)
+                        [set free false]
+                      if [patch-x] of other-aircraft-3 = following-patch-x and [patch-y] of other-aircraft-3 = following-patch-y
+                        [set free false]
+             ]
+        ]
+    ]
+end
+
+
+to coordination-rules-traveltime                    ; Enforces the adjusted and optimised strategy: priority at infrastructer agent is given to agent's with the largest waiting time
+  set free true                      ; In principle aircraft is free to go further.
   if other-aircraft-1 != nobody
     [
 
@@ -500,6 +565,7 @@ ifelse [patch-type] of patch-ahead 0 = "runwayleft" or [patch-type] of patch-ahe
       set color red]                                        ; and set color to red, to see clearly that an aircraft is waiting
     [move-to patch-ahead 1                                  ; If free is not false, then one aircraft can move ahead,
       set color black                                       ; and color can be (re)set to black
+      set travel-distance (travel-distance + 1)             ; set distance traveled plus one, because he moves one patch ahead
       if on-infra = 1                                       ; If a/c is on infrastructure agent,
       [
        set last-infra infrastructure-mate                   ; Set last-infra to keep track of which was previous link
@@ -511,8 +577,10 @@ end
 ;--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ; HELPER PROCEDURES
 ; Procedures called upon in the above procedures.
+
+
 to link-traffic
-  ; hardcoding it, possible to add lable to all links in the interface to be able to see clearly which link has which number
+  ; possible to add lable to all links in the interface to be able to see clearly which link has which number
   ; bottom to top, left to right
   let traffic-link-1 count aircrafts with [pycor >= -10 and pycor < -5 and pxcor = -5]
   let traffic-link-2 count aircrafts with [pycor >= -10 and pycor < -5 and pxcor = 0]
@@ -558,8 +626,7 @@ to link-traffic
   let traffic-link-36 count aircrafts with [pycor >= 5 and pycor <= 10 and pxcor = -15]
   let traffic-link-37 count aircrafts with [pycor >= 5 and pycor <= 10 and pxcor = 15]
 
-
-  set link-list []; I Moved it to SETUP
+  set link-list []
 
   set link-list lput traffic-link-1 link-list
   set link-list lput traffic-link-2 link-list
@@ -608,16 +675,12 @@ to link-traffic
   let max-list max(link-list)
   let max-list-index position max-list link-list + 1
 
-
-
-  set occupied-links-count length remove 0 link-list / 37 * 100
-  set occupied-links-list lput occupied-links-count occupied-links-list
-
-
-
   ;print(link-list)
 
   ;print (word "Link " max-list-index " has the highest amount of traffic: " max-list " aircraft.")
+
+  ; Obtain number of occupied links
+
 
 
 
@@ -634,25 +697,7 @@ to link-traffic
 end
 
 to runway-usage                                                       ; to prevent two aircraft of using the runway at the same time
-  ; TOO EXTENSIVE WAY: DISREGARD
-  ;let agents-on-approach-runwayleft count other aircrafts with [(pxcor = -15) and (pycor > 5)]
-  ;let agents-on-approach-runwayright count other aircrafts with [(pxcor = 15) and (pycor > 5)]
-  ;print agents-on-approach-runwayleft
-  ;let rechts count other aircrafts with [[patch-type] of patch-ahead 1 = "runwayright"]
-  ;let linkse count other aircrafts with [[patch-type] of patch-ahead 1 = "runwayleft"]
-
-  ;if agents-on-approach-runwayleft < agents-on-approach-runwayright - 2
-  ; originally only the following three lines
-  ;[if [patch-type] of patch-ahead 1 = "runwayleft" and rechts != 0
-  ;[set free false]
-  ;]
-
-   ;if [patch-type] of patch-ahead 1 = "runwayright" and linkse != 0
-  ;[set free false
-  ;]
-
-  ; NEW WAY: global variable 'runway-occupied' indicates whether runway is occupied or not
-  let rechts count other aircrafts with [[patch-type] of patch-ahead 1 = "runwayright"]
+  let rechts count other aircrafts with [[patch-type] of patch-ahead 1 = "runwayright"]       ;global variable 'runway-occupied' indicates whether runway is occupied or not
   let linkse count other aircrafts with [[patch-type] of patch-ahead 1 = "runwayleft"]
 
   ; it was found that it is sufficient to apply this rule only to the left agent
@@ -660,7 +705,7 @@ to runway-usage                                                       ; to preve
   ; (as aircraft behind are most likely in queue, making the distance between all aircraft equal
   ; this allows us to restrict the separation rule only to either side, as once the asimultaneous arrival of left and right is set, this method does not need to intervene anymore
 
-  ;if agents-on-approach-runwayleft < agents-on-approach-runwayright - 2
+  ; If agents-on-approach-runwayleft < agents-on-approach-runwayright - 2
   if [patch-type] of patch-ahead 1 = "runwayleft" and rechts != 0
   [set free false]
 end
@@ -670,55 +715,29 @@ to find-path
 end
 
 to make-ticks-generator                                                                ; Specifies how often new aircraft are generated
-
-  set rythm-left ticks-generator                                                                     ; Aircraft are generated at gates every 3 ticks
-  set rythm-centre ticks-generator                                                                   ; Aircraft are generated at gates every 3 ticks
-  set rythm-right ticks-generator                                                                    ; Aircraft are generated at gates every 3 ticks
-
-  if asymmetric-demand = "left"
-  [set rythm-left ticks-generator - 1
-   set rythm-centre ticks-generator + 1
-   set rythm-right ticks-generator + 1]
-  if asymmetric-demand = "right"
-  [set rythm-left ticks-generator + 1
-   set rythm-centre ticks-generator + 1
-   set rythm-right ticks-generator - 1]
+  set ticks-generator 3                                                                ; Aircraft are generated at gates every 3 ticks
 end
 
-to find-integer
-; Generation of aircraft, every 5 ticks, either stochastically or not
-
-    if int (ticks / rythm-left) = (ticks / rythm-left)                         ; Every time that 5 ticks have passed,
-    [
-      ifelse stochastic-departure = true                                                   ; If stochastic-departure is on,
-      [set random-generator-1 ticks + one-of [0 1 2]]                                      ; for every gate, choose random number between 0 and 4, and add this to the current amount of ticks.
-      [set random-generator-1 ticks]                                                        ; If stochastic-departure is off, generate all new aircraft at same time, every 5 ticks
-       ]
-
-    if int (ticks / rythm-centre) = (ticks / rythm-centre)                         ; Every time that 5 ticks have passed,
-    [
-      ifelse stochastic-departure = true                                                   ; If stochastic-departure is on,
-      [set random-generator-2 ticks + one-of [0 1 2]]                                      ; for every gate, choose random number between 0 and 4, and add this to the current amount of ticks.
-      [set random-generator-2 ticks]                                                        ; If stochastic-departure is off, generate all new aircraft at same time, every 5 ticks
-       ]
-
-    if int (ticks / rythm-right) = (ticks / rythm-right)                         ; Every time that 5 ticks have passed,
-    [
-      ifelse stochastic-departure = true                                                   ; If stochastic-departure is on,
-      [set random-generator-3 ticks + one-of [0 1 2]]                                      ; for every gate, choose random number between 0 and 4, and add this to the current amount of ticks.
-      [set random-generator-3 ticks]                                                        ; If stochastic-departure is off, generate all new aircraft at same time, every 5 ticks
-       ]
-
-    ifelse random-generator-1 = ticks                                                    ; If the random-generator equals current amount of ticks,
-    [set integer-1 "true"]                                                               ; a new aircraft can be generated on gate 1
-    [set integer-1 "false"]
-    ifelse random-generator-2 = ticks                                                    ; idem
-    [set integer-2 "true"]
-    [set integer-2 "false"]
-    ifelse random-generator-3 = ticks                                                    ; idem
-    [set integer-3 "true"]
-    [set integer-3 "false"]
-
+to find-integer                                                                        ; Generation of aircraft, every 5 ticks, either stochastically or not
+  if int (ticks / ticks-generator) = (ticks / ticks-generator)                         ; Every time that 5 ticks have passed,
+  [
+  ifelse stochastic-departure = true                                                   ; If stochastic-departure is on,
+  [set random-generator-1 ticks + one-of [0 1 2]                                       ; for every gate, choose random number between 0 and 4,
+   set random-generator-2 ticks + one-of [0 1 2]                                       ; and add this to the current amount of ticks.
+   set random-generator-3 ticks + one-of [0 1 2]]
+  [set random-generator-1 ticks                                                        ; If stochastic-departure is off,
+   set random-generator-2 ticks                                                        ; generate all new aircraft at same time, every 5 ticks
+   set random-generator-3 ticks]
+  ]
+  ifelse random-generator-1 = ticks                                                    ; If the random-generator equals current amount of ticks,
+  [set integer-1 "true"]                                                               ; a new aircraft can be generated on gate 1
+  [set integer-1 "false"]
+  ifelse random-generator-2 = ticks                                                    ; idem
+  [set integer-2 "true"]
+  [set integer-2 "false"]
+  ifelse random-generator-3 = ticks                                                    ; idem
+  [set integer-3 "true"]
+  [set integer-3 "false"]
 end
 
 to find-patches                                                                        ; Used by both infrastructure & aircraft agents: find current patch that they are on
@@ -808,6 +827,7 @@ end
 
 ; CHECK-COLLISION: Check and count total amount of collisions
 
+
 to check-collision                                                   ; Checks for collisions with other aircraft
   find-nearest-aircraft                                              ; Finds aircraft that is closest by
   ifelse nearest-aircraft = nobody                                   ; If there is no nearby aircraft, there is no collision
@@ -837,18 +857,11 @@ to calculate-interarrival
 
      ]
 end
-
-; COUNT-WAITING-AIRCRAFT: Count how many aircraft are currently waiting
-
-to count-aircraft-waiting
-  if any? aircrafts
-  [set aircraft-waiting-list lput (count aircrafts with [free = false] / count aircrafts * 100) aircraft-waiting-list]
-end
 @#$#@#$#@
 GRAPHICS-WINDOW
-223
+210
 10
-712
+699
 448
 -1
 -1
@@ -962,9 +975,9 @@ PENS
 
 SWITCH
 0
-115
+165
 188
-148
+198
 stochastic-departure
 stochastic-departure
 1
@@ -994,10 +1007,10 @@ arrived-right
 11
 
 SLIDER
-1
-198
-189
-231
+0
+205
+172
+238
 taxiway-capacity
 taxiway-capacity
 10
@@ -1011,7 +1024,7 @@ HORIZONTAL
 CHOOSER
 0
 305
-92
+138
 350
 planning
 planning
@@ -1021,7 +1034,7 @@ planning
 SWITCH
 0
 358
-177
+204
 391
 structural-coordination
 structural-coordination
@@ -1031,37 +1044,22 @@ structural-coordination
 
 CHOOSER
 0
-150
-188
-195
-asymmetric-demand
-asymmetric-demand
-"left" "normal" "right"
-1
-
-SLIDER
-0
-233
-188
-266
-ticks-generator
-ticks-generator
+255
+151
+300
+coordination-rule
+coordination-rule
+"Original rule" "Travel-time rule" "None"
 2
-7
-2.0
-1
-1
-ticks btw a/c
-HORIZONTAL
 
 PLOT
-960
-14
-1160
-164
+940
+10
+1140
+160
 Waiting aircraft
-Time
-% Aircraft
+NIL
+NIL
 0.0
 10.0
 0.0
@@ -1070,28 +1068,16 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "if not empty? aircraft-waiting-list\n[plot mean aircraft-waiting-list]"
-"pen-1" 1.0 0 -9276814 true "" "if any? aircrafts\n[plot (count aircrafts with [free = false] / count aircrafts * 100)]"
-
-MONITOR
-957
-347
-1094
-392
-Capacity occupancy [%]
-(count aircrafts) / taxiway-capacity * 100
-1
-1
-11
+"default" 1.0 0 -16777216 true "" "plot count aircrafts with [color = red]"
 
 PLOT
-959
-177
-1159
-327
-Occupied Links
-Time
-% Links
+937
+342
+1137
+492
+Average travel distance
+NIL
+NIL
 0.0
 10.0
 0.0
@@ -1100,19 +1086,18 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot occupied-links-count"
-"pen-1" 1.0 0 -7500403 true "" "if not empty? occupied-links-list\n[plot mean occupied-links-list]\n"
+"default" 1.0 0 -16777216 true "" "plot (mean [travel-distance] of aircrafts)"
 
-MONITOR
-958
-411
-1085
-456
-Full capacity links [%]
-length filter [i -> i = 5] link-list / 37 * 100
-0
+SWITCH
 1
-11
+396
+191
+429
+coordination-negotiation
+coordination-negotiation
+1
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?

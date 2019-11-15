@@ -615,6 +615,10 @@ to link-traffic
 
 
 
+  ;print(link-list)
+
+  ;print (word "Link " max-list-index " has the highest amount of traffic: " max-list " aircraft.")
+
 
 
   ;link-set [my-links] of infrastructures

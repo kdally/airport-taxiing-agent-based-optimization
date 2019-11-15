@@ -840,7 +840,8 @@ end
 ; COUNT-WAITING-AIRCRAFT: Count how many aircraft are currently waiting
 
 to count-aircraft-waiting
-  set aircraft-waiting-list lput (count aircrafts with [free = false] / count aircrafts * 100) aircraft-waiting-list
+  if any? aircrafts
+  [set aircraft-waiting-list lput (count aircrafts with [free = false] / count aircrafts * 100) aircraft-waiting-list]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW

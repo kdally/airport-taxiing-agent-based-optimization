@@ -559,7 +559,7 @@ to link-traffic
   let traffic-link-37 count aircrafts with [pycor >= 5 and pycor <= 10 and pxcor = 15]
 
 
-  set link-list [] I Moved it to SETUP
+  set link-list [] ;reinitialize link-list
 
   set link-list lput traffic-link-1 link-list
   set link-list lput traffic-link-2 link-list
@@ -609,11 +609,10 @@ to link-traffic
   let max-list-index position max-list link-list + 1
 
 
-
   set busy-links-count length remove 0 link-list / 37 * 100
   set busy-links-list lput busy-links-count busy-links-list
 
-
+  ;show length filter [i -> i = 5] link-list
 
   ;print(link-list)
 
@@ -841,7 +840,7 @@ end
 ; COUNT-WAITING-AIRCRAFT: Count how many aircraft are currently waiting
 
 to count-aircraft-waiting
-  set aircraft-waiting-list lput count aircrafts with [free = false] aircraft-waiting-list
+  set aircraft-waiting-list lput (count aircrafts with [free = false] / count aircrafts * 100) aircraft-waiting-list
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -1047,7 +1046,7 @@ ticks-generator
 ticks-generator
 2
 7
-3.0
+2.0
 1
 1
 ticks btw a/c
@@ -1058,9 +1057,9 @@ PLOT
 14
 1160
 164
-Histogram waiting aircraft count
+Waiting aircraft
 Time
-Aircraft
+% Aircraft
 0.0
 10.0
 0.0
@@ -1070,7 +1069,7 @@ false
 "" ""
 PENS
 "default" 1.0 0 -16777216 true "" "if not empty? aircraft-waiting-list\n[plot mean aircraft-waiting-list]"
-"pen-1" 1.0 0 -9276814 true "" "plot count aircrafts with [free = false]"
+"pen-1" 1.0 0 -9276814 true "" "if any? aircrafts\n[plot (count aircrafts with [free = false] / count aircrafts * 100)]"
 
 MONITOR
 957
@@ -1090,7 +1089,7 @@ PLOT
 327
 Histogram Occupied Links Count
 Time
-Links
+% Links
 0.0
 10.0
 0.0
@@ -1101,6 +1100,17 @@ false
 PENS
 "default" 1.0 0 -16777216 true "" "plot busy-links-count"
 "pen-1" 1.0 0 -7500403 true "" "if not empty? busy-links-list\n[plot mean busy-links-list]\n"
+
+MONITOR
+958
+411
+1085
+456
+Full capacity links [%]
+length filter [i -> i = 5] link-list / 37 * 100
+0
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?

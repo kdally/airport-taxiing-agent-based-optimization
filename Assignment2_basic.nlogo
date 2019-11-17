@@ -30,6 +30,7 @@ aircrafts-own [
   bid                                          ; The quantatity bid by an aircraft in an auction
   budget                                       ; The remaining budget to be used by an aircraft to bid, in order to potentially be granted priority
   travel-distance                              ; Total distance travelled by an aircraft
+  hub                                          ; Defines whether the aircraft has a hub at the airport or not
 
 ]
 
@@ -72,6 +73,8 @@ globals [
   occupied-links-list
   occupied-links-count
   reds
+  traffic-left-approach
+  traffic-right-approach
 ]
 
 
@@ -379,9 +382,6 @@ end
 ; EXECUTE AUCTION
 
 to perform-auction
-
-
-
   set nearby-aircraft aircrafts in-radius 1.5                 ; Radius of 1.5 patches is considered in the negotiation area
   if any? nearby-aircraft
   [ask nearby-aircraft [
@@ -401,7 +401,7 @@ to perform-auction
 
 
     let winner nearby-aircraft with-max [bid]
-    ;print [bid] of winner
+    print [bid] of winner
     ask winner
     [set free true]
 
@@ -466,10 +466,19 @@ to create-aircraft-now                                 ; Makes sure an aircraft 
   sprout-aircrafts 1
   [
   set ac-generated (ac-generated + 1)
-  set color black
+  ;set color black
   set size 1
   set heading 0
   set last-infra nobody
+  ifelse airport-hub
+    [set hub (random-float 1 < 0.6)]                 ; Reports true or false, with 60% probability of reporting true (6/10 aircraft have hub at this airport
+    [set hub false]
+  ifelse hub
+    [set color blue]
+    [set color black]
+
+
+
   ]
 end
 
@@ -481,11 +490,13 @@ end
 to check-free
   find-other-aircraft-1-2-3          ; Helper procedure that finds and identifies other aircraft that are within radius of 1.5 patches
 
+  set free true                                     ; In principle aircraft is free to go further.
 
   runway-usage                                                                                                   ; Prevents two aircraft using entering the runway simultaneously
-  (ifelse coordination-rule = "Original rule"                                                                              ; Enforces coordination based on priority from the right if activated
+
+  (ifelse coordination-rule = "Original rule"                                                                    ; Enforces coordination based on priority from the right if activated
     [coordination-rules-original]
-   coordination-rule = "Travel-time rule"                                                                             ; Enforces coordination based on agent's total waiting time if activated
+   coordination-rule = "Travel-time rule"                                                                        ; Enforces coordination based on agent's total waiting time if activated
     [coordination-rules-traveltime]
    coordination-rule = "None"
     [])
@@ -495,11 +506,13 @@ end
 ; COORDINATION BY RULES
 
 to coordination-rules-original                    ; Enforces the default coordination strategy (priority from the right)
-  set free true                      ; In principle aircraft is free to go further.
-  if other-aircraft-1 != nobody
+
+  ifelse hub                                      ; first case if aircraft has hub at airport, second case if aircraft does not have hub at airport
+  [
+   if other-aircraft-1 != nobody
     [
 
-            if [following-patch-x] of other-aircraft-1 = following-patch-x and [following-patch-y] of other-aircraft-1 = following-patch-y  and ([heading] of other-aircraft-1 - heading = 270 or [heading] of other-aircraft-1 - heading = -90)
+            if [following-patch-x] of other-aircraft-1 = following-patch-x and [following-patch-y] of other-aircraft-1 = following-patch-y  and (([heading] of other-aircraft-1 - heading = 270 or [heading] of other-aircraft-1 - heading = -90) and [hub] of other-aircraft-1)
           [set free false]
 
             if [patch-x] of other-aircraft-1 = following-patch-x and [patch-y] of other-aircraft-1 = following-patch-y ;and ([free] of other-aircraft-1) = false
@@ -508,7 +521,7 @@ to coordination-rules-original                    ; Enforces the default coordin
 
       if other-aircraft-2 != nobody
         [
-          if [following-patch-x] of other-aircraft-2 = following-patch-x and [following-patch-y] of other-aircraft-2 = following-patch-y and ([heading] of other-aircraft-2 - heading = 270 or [heading] of other-aircraft-2 - heading = -90)
+          if [following-patch-x] of other-aircraft-2 = following-patch-x and [following-patch-y] of other-aircraft-2 = following-patch-y and (([heading] of other-aircraft-2 - heading = 270 or [heading] of other-aircraft-2 - heading = -90) and [hub] of other-aircraft-2)
                       [set free false]
                   if [patch-x] of other-aircraft-2 = following-patch-x and [patch-y] of other-aircraft-2 = following-patch-y ;and ([free] of other-aircraft-2) = false
                       [set free false]
@@ -516,22 +529,57 @@ to coordination-rules-original                    ; Enforces the default coordin
 
            if other-aircraft-3 != nobody
              [
-              if [following-patch-x] of other-aircraft-3 = following-patch-x and [following-patch-y] of other-aircraft-3 = following-patch-y and ([heading] of other-aircraft-3 - heading = 270 or [heading] of other-aircraft-3 - heading = -90)
+              if [following-patch-x] of other-aircraft-3 = following-patch-x and [following-patch-y] of other-aircraft-3 = following-patch-y and (([heading] of other-aircraft-3 - heading = 270 or [heading] of other-aircraft-3 - heading = -90) and [hub] of other-aircraft-3)
                         [set free false]
                       if [patch-x] of other-aircraft-3 = following-patch-x and [patch-y] of other-aircraft-3 = following-patch-y
                         [set free false]
              ]
         ]
     ]
+  ]
+  [
+    if other-aircraft-1 != nobody
+    [
+
+            if [following-patch-x] of other-aircraft-1 = following-patch-x and [following-patch-y] of other-aircraft-1 = following-patch-y  and (([heading] of other-aircraft-1 - heading = 270 or [heading] of other-aircraft-1 - heading = -90) or ([hub] of other-aircraft-1 and not hub))
+          [set free false]
+
+            if [patch-x] of other-aircraft-1 = following-patch-x and [patch-y] of other-aircraft-1 = following-patch-y ;and ([free] of other-aircraft-1) = false
+                [set free false]
+
+
+      if other-aircraft-2 != nobody
+        [
+          if [following-patch-x] of other-aircraft-2 = following-patch-x and [following-patch-y] of other-aircraft-2 = following-patch-y and (([heading] of other-aircraft-2 - heading = 270 or [heading] of other-aircraft-2 - heading = -90) or ([hub] of other-aircraft-2 and not hub))
+                      [set free false]
+                  if [patch-x] of other-aircraft-2 = following-patch-x and [patch-y] of other-aircraft-2 = following-patch-y ;and ([free] of other-aircraft-2) = false
+                      [set free false]
+
+
+           if other-aircraft-3 != nobody
+             [
+              if [following-patch-x] of other-aircraft-3 = following-patch-x and [following-patch-y] of other-aircraft-3 = following-patch-y and (([heading] of other-aircraft-3 - heading = 270 or [heading] of other-aircraft-3 - heading = -90) or ([hub] of other-aircraft-3 and not hub))
+                        [set free false]
+                      if [patch-x] of other-aircraft-3 = following-patch-x and [patch-y] of other-aircraft-3 = following-patch-y
+                        [set free false]
+             ]
+        ]
+    ]
+  ]
+
+
+
 end
 
 
 to coordination-rules-traveltime                    ; Enforces the adjusted and optimised strategy: priority at infrastructer agent is given to agent's with the largest waiting time
-  set free true                      ; In principle aircraft is free to go further.
-  if other-aircraft-1 != nobody
+
+  ifelse hub                                        ; first case if aircraft has hub at airport, second case if aircraft does not have hub at airport
+  [
+    if other-aircraft-1 != nobody
     [
 
-            if [following-patch-x] of other-aircraft-1 = following-patch-x and [following-patch-y] of other-aircraft-1 = following-patch-y  and [travel-time] of other-aircraft-1 > travel-time
+      if [following-patch-x] of other-aircraft-1 = following-patch-x and [following-patch-y] of other-aircraft-1 = following-patch-y  and ([travel-time] of other-aircraft-1 > travel-time and [hub] of other-aircraft-1)
           [set free false]
 
             if [patch-x] of other-aircraft-1 = following-patch-x and [patch-y] of other-aircraft-1 = following-patch-y ;and ([free] of other-aircraft-1) = false
@@ -540,7 +588,7 @@ to coordination-rules-traveltime                    ; Enforces the adjusted and 
 
       if other-aircraft-2 != nobody
         [
-          if [following-patch-x] of other-aircraft-2 = following-patch-x and [following-patch-y] of other-aircraft-2 = following-patch-y and [travel-time] of other-aircraft-2 > travel-time
+          if [following-patch-x] of other-aircraft-2 = following-patch-x and [following-patch-y] of other-aircraft-2 = following-patch-y and ([travel-time] of other-aircraft-2 > travel-time and [hub] of other-aircraft-2)
                       [set free false]
                   if [patch-x] of other-aircraft-2 = following-patch-x and [patch-y] of other-aircraft-2 = following-patch-y ;and ([free] of other-aircraft-2) = false
                       [set free false]
@@ -548,13 +596,48 @@ to coordination-rules-traveltime                    ; Enforces the adjusted and 
 
            if other-aircraft-3 != nobody
              [
-              if [following-patch-x] of other-aircraft-3 = following-patch-x and [following-patch-y] of other-aircraft-3 = following-patch-y and [travel-time] of other-aircraft-3 > travel-time
+              if [following-patch-x] of other-aircraft-3 = following-patch-x and [following-patch-y] of other-aircraft-3 = following-patch-y and ([travel-time] of other-aircraft-3 > travel-time and [hub] of other-aircraft-3)
                         [set free false]
                       if [patch-x] of other-aircraft-3 = following-patch-x and [patch-y] of other-aircraft-3 = following-patch-y
                         [set free false]
              ]
         ]
     ]
+  ]
+
+
+  [if other-aircraft-1 != nobody
+    [
+
+      if [following-patch-x] of other-aircraft-1 = following-patch-x and [following-patch-y] of other-aircraft-1 = following-patch-y  and ([travel-time] of other-aircraft-1 > travel-time or ([hub] of other-aircraft-1 and not hub))
+          [set free false]
+
+            if [patch-x] of other-aircraft-1 = following-patch-x and [patch-y] of other-aircraft-1 = following-patch-y ;and ([free] of other-aircraft-1) = false
+                [set free false]
+
+
+      if other-aircraft-2 != nobody
+        [
+          if [following-patch-x] of other-aircraft-2 = following-patch-x and [following-patch-y] of other-aircraft-2 = following-patch-y and ([travel-time] of other-aircraft-2 > travel-time or ([hub] of other-aircraft-2 and not hub))
+                      [set free false]
+                  if [patch-x] of other-aircraft-2 = following-patch-x and [patch-y] of other-aircraft-2 = following-patch-y ;and ([free] of other-aircraft-2) = false
+                      [set free false]
+
+
+           if other-aircraft-3 != nobody
+             [
+              if [following-patch-x] of other-aircraft-3 = following-patch-x and [following-patch-y] of other-aircraft-3 = following-patch-y and ([travel-time] of other-aircraft-3 > travel-time or ([hub] of other-aircraft-3 and not hub))
+                        [set free false]
+                      if [patch-x] of other-aircraft-3 = following-patch-x and [patch-y] of other-aircraft-3 = following-patch-y
+                        [set free false]
+             ]
+        ]
+    ]
+  ]
+
+
+
+
 end
 
 ; NORMAL-TAXI-RUNWAY: Procedure to either move forward or not, using the specified variables
@@ -570,7 +653,9 @@ ifelse [patch-type] of patch-ahead 0 = "runwayleft" or [patch-type] of patch-ahe
       set waiting-time (waiting-time + 1)                   ; set waiting time plus one, because he waits one unit of time,
       set color red]                                        ; and set color to red, to see clearly that an aircraft is waiting
     [move-to patch-ahead 1                                  ; If free is not false, then one aircraft can move ahead,
-      set color black                                       ; and color can be (re)set to black
+      ifelse hub
+      [set color blue]                                     ; and color can be (re)set to black
+      [set color black]
       set travel-distance (travel-distance + 1)
       if on-infra = 1                                       ; If a/c is on infrastructure agent,
       [
@@ -584,8 +669,8 @@ end
 ; HELPER PROCEDURES
 ; Procedures called upon in the above procedures.
 to link-traffic
-  ; hardcoding it, possible to add lable to all links in the interface to be able to see clearly which link has which number
-  ; bottom to top, left to right
+  ; Hardcoding it, possible to add lable to all links in the interface to be able to see clearly which link has which number
+  ; Numbering done bottom to top, left to right
   let traffic-link-1 count aircrafts with [pycor >= -10 and pycor < -5 and pxcor = -5]
   let traffic-link-2 count aircrafts with [pycor >= -10 and pycor < -5 and pxcor = 0]
   let traffic-link-3 count aircrafts with [pycor >= -10 and pycor < -5 and pxcor = 5]
@@ -629,7 +714,6 @@ to link-traffic
 
   let traffic-link-36 count aircrafts with [pycor >= 5 and pycor <= 10 and pxcor = -15]
   let traffic-link-37 count aircrafts with [pycor >= 5 and pycor <= 10 and pxcor = 15]
-
 
   set link-list []; I Moved it to SETUP
 
@@ -680,43 +764,24 @@ to link-traffic
   let max-list max(link-list)
   let max-list-index position max-list link-list + 1
 
-
-
   set occupied-links-count length remove 0 link-list / 37 * 100
   set occupied-links-list lput occupied-links-count occupied-links-list
 
-
-
-  ;print(link-list)
-
-  ;print (word "Link " max-list-index " has the highest amount of traffic: " max-list " aircraft.")
-
-
-
-  ;link-set [my-links] of infrastructures
-
-  ;print link-set links-own
-
-  ;foreach links
-  ;[
-  ;let traffic-count count aircrafts with (pycor < [end1] of link)
-  ;set traffic-on-link traffic-count
-  ;]
-
+  set traffic-left-approach (traffic-link-23 + traffic-link-30 + traffic-link-36)      ; The amount of traffic on left approach (three links leading to the left runway), used in runway-usage procedure
+  set traffic-right-approach (traffic-link-29 + traffic-link-35 + traffic-link-37)     ; The amount of traffic on right approach (three links leading to the right runway), used in runway-usage procedure
 end
 
-to runway-usage                                                       ; to prevent two aircraft of using the runway at the same time
-  let rechts count other aircrafts with [[patch-type] of patch-ahead 1 = "runwayright"]       ;global variable 'runway-occupied' indicates whether runway is occupied or not
-  let linkse count other aircrafts with [[patch-type] of patch-ahead 1 = "runwayleft"]
+to runway-usage                                                                                    ; Prevent two aircraft of using the runway at the same time
+  link-traffic                                                                                     ; Call link-traffic to obtain link traffic data
+  set free true
+  let right-runway count other aircrafts with [[patch-type] of patch-ahead 1 = "runwayright"]      ; Counts the amount of aircraft on the right runway
+  let left-runway count other aircrafts with [[patch-type] of patch-ahead 1 = "runwayleft"]        ; Counts the amount of aircraft on the left runway
 
-  ; it was found that it is sufficient to apply this rule only to the left agent
-  ; the reason for this is that when the initial sequence of asimultaneous arrival at runway is set, the sequence remains the same
-  ; (as aircraft behind are most likely in queue, making the distance between all aircraft equal
-  ; this allows us to restrict the separation rule only to either side, as once the asimultaneous arrival of left and right is set, this method does not need to intervene anymore
-
-  ; If agents-on-approach-runwayleft < agents-on-approach-runwayright - 2
-  if [patch-type] of patch-ahead 1 = "runwayleft" and rechts != 0
-  [set free false]
+ ifelse traffic-left-approach <= traffic-right-approach                                            ; If traffic on left approach is less than right, in case of potential simultaneous runway usage
+ [if [patch-type] of patch-ahead 1 = "runwayleft" and right-runway != 0                            ; The aircraft on the left approach should give priority to the aircraft on right approach, and vice-versa
+    [set free false]]
+ [if [patch-type] of patch-ahead 1 = "runwayright" and left-runway != 0
+    [set free false]]
 end
 
 to find-path
@@ -987,7 +1052,7 @@ Travel time histogram
 NIL
 NIL
 25.0
-35.0
+100.0
 0.0
 10.0
 true
@@ -1021,7 +1086,7 @@ SWITCH
 148
 stochastic-departure
 stochastic-departure
-1
+0
 1
 -1000
 
@@ -1070,7 +1135,7 @@ CHOOSER
 planning
 planning
 "Global" "Local" "None"
-2
+0
 
 SWITCH
 0
@@ -1226,6 +1291,35 @@ Model features
 13
 0.0
 1
+
+PLOT
+1172
+14
+1372
+164
+Average travel time
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "if any? aircrafts [plot (mean [travel-time] of aircrafts)]"
+
+SWITCH
+2
+491
+182
+524
+airport-hub
+airport-hub
+0
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?

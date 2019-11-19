@@ -30,7 +30,6 @@ aircrafts-own [
   bid                                          ; The quantatity bid by an aircraft in an auction
   budget                                       ; The remaining budget to be used by an aircraft to bid, in order to potentially be granted priority
   travel-distance                              ; Total distance travelled by an aircraft
-
 ]
 
 infrastructures-own [
@@ -68,10 +67,14 @@ globals [
   rythm-left
   rythm-centre
   rythm-right
+  used-capacity-list
   aircraft-waiting-list
+  travel-distance-list
   occupied-links-list
   occupied-links-count
+  travel-distance-to-runway
   reds
+  ;efficiency
 ]
 
 
@@ -100,8 +103,10 @@ to setup
   set travel-time-list []                                                               ; Initialize travel-time-list
   set waiting-time-list []                                                              ; Initialize waiting-time-list
   set aircraft-waiting-list []                                                          ; Initialize aircraft-waiting-list
-  set occupied-links-list []                                                                ; Initialize  occupied-links-list
-  set link-list []                                                                      ; Initialize  link-list
+  set occupied-links-list []                                                            ; Initialize occupied-links-list
+  set link-list []                                                                      ; Initialize link-list
+  set travel-distance-list []                                                           ; Initialize travel-distance-list
+  set used-capacity-list []                                                             ; Initialize used-capacity-list
   ask infrastructures [find-patches]                                                    ; Helper procedure that finds Xcor and Ycor of infrastructures
   ask infrastructures with [patch-type = "waypoint"] [determine-if-key]                 ; Helper procedure that determines if the waypoint infrastructure shoudl update its weights for the local observation-based planning                                                               ; Helper procedure that determines in how many ticks one new aircraft is generated
   reset-ticks
@@ -436,10 +441,12 @@ to go
 ; Ask infrastructures to calculate and report the interarrival time when aircraft arrive on one of the runways
   ask infrastructures with [patch-type = "runwayleft" or patch-type = "runwayright"] [calculate-interarrival]
 
-  count-aircraft-waiting
+  count-aircraft
   link-traffic
 
+  if ticks = 5000 [stop]
   tick                                      ; Adds one tick everytime the go procedure is performed
+
 
 end
 
@@ -562,9 +569,9 @@ end
 to normal-taxi-runway
 set travel-time (travel-time + 1 + random-float 0.00001)    ; Aircraft counts how long it has been travelling, and adds random component, so no travel-times of two a/c are same
 ifelse [patch-type] of patch-ahead 0 = "runwayleft" or [patch-type] of patch-ahead 0 = "runwayright"
- [set travel-time-list lput travel-time travel-time-list    ; Put the travel time of the arrived aircraft in the list
-  set waiting-time-list lput waiting-time waiting-time-list ; Put the waiting time of the arrived aircraft in the list
-  die ]                                                     ; If runway has been reached: die.
+    [set travel-time-list lput travel-time travel-time-list    ; Put the travel time of the arrived aircraft in the list
+     set waiting-time-list lput waiting-time waiting-time-list ; Put the waiting time of the arrived aircraft in the list
+     die ]                                                     ; If runway has been reached: die.
   [ifelse free = false
     [move-to patch-ahead 0                                  ; Don't move ahead if it is specified that the way is not free,
       set waiting-time (waiting-time + 1)                   ; set waiting time plus one, because he waits one unit of time,
@@ -683,7 +690,8 @@ to link-traffic
 
 
   set occupied-links-count length remove 0 link-list / 37 * 100
-  set occupied-links-list lput occupied-links-count occupied-links-list
+  if ticks > 2000
+  [set occupied-links-list lput occupied-links-count occupied-links-list]
 
 
 
@@ -880,10 +888,13 @@ to calculate-interarrival
   if activated = 1                                                             ; Only calculate interarrival-time after activation
   [set interarrival-time (interarrival-time + 1)]                              ; Interarrival time is counted every tick
   if any? aircrafts-on patch patch-x patch-y                                   ; If an aircraft has arrived
-     [if interarrival-time > 0
+      [set travel-distance-to-runway [travel-distance] of one-of aircrafts-on patch patch-x patch-y
+       if ticks > 2000
+        [set travel-distance-list lput travel-distance-to-runway travel-distance-list]
+       if interarrival-time > 0
         [set interarrival-time-list lput interarrival-time interarrival-time-list]  ; Put the interarrival time between the arrived aircraft in the list
-      set interarrival-time 0                                                  ; Reset interarrival time
-      set activated 1                                                          ; Activate calculation after first aircraft has arrived
+       set interarrival-time 0                                                  ; Reset interarrival time
+       set activated 1                                                          ; Activate calculation after first aircraft has arrived
 
       ifelse patch-type = "runwayleft"                                            ; If the arrival is at left runway,
       [set arrived-left (arrived-left + 1)]                                    ; count one extra at left runway
@@ -894,10 +905,16 @@ end
 
 ; COUNT-WAITING-AIRCRAFT: Count how many aircraft are currently waiting
 
-to count-aircraft-waiting
-  if any? aircrafts
-  [set aircraft-waiting-list lput (count aircrafts with [free = false] / count aircrafts * 100) aircraft-waiting-list]
+to count-aircraft
+  if any? aircrafts and ticks > 2000
+  [;set efficiency (arrived-left + arrived-right) / (ticks / rythm-right + ticks / rythm-centre + ticks / rythm-left) * 100
+   ;set efficiency-list lput efficiency efficiency-list
+   set used-capacity-list lput (count aircrafts / taxiway-capacity * 100) used-capacity-list
+   set aircraft-waiting-list lput (count aircrafts with [free = false] / count aircrafts * 100) aircraft-waiting-list
+  ]
 end
+
+
 @#$#@#$#@
 GRAPHICS-WINDOW
 223
@@ -984,8 +1001,8 @@ PLOT
 927
 327
 Travel time histogram
-NIL
-NIL
+Time
+Aircraft
 25.0
 35.0
 0.0
@@ -1002,8 +1019,8 @@ PLOT
 927
 492
 Histogram waiting time
-NIL
-NIL
+Time
+Aircraft
 0.0
 10.0
 0.0
@@ -1070,7 +1087,7 @@ CHOOSER
 planning
 planning
 "Global" "Local" "None"
-2
+1
 
 SWITCH
 0
@@ -1091,7 +1108,7 @@ CHOOSER
 coordination-rule
 coordination-rule
 "Original rule" "Travel-time rule" "None"
-0
+1
 
 CHOOSER
 0
@@ -1104,13 +1121,13 @@ asymmetric-demand
 1
 
 PLOT
-960
-342
-1160
-492
-Average travel distance
+1268
+12
+1572
+171
+Average travel distance to runway
 Time
-NIL
+Patches
 0.0
 10.0
 0.0
@@ -1119,7 +1136,8 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "if any? aircrafts\n[plot (mean [travel-distance] of aircrafts)]"
+"default" 1.0 0 -16777216 true "" "plot travel-distance-to-runway"
+"pen-1" 1.0 0 -2674135 true "" "if not empty? travel-distance-list\n[plot mean travel-distance-list]"
 
 SLIDER
 0
@@ -1148,13 +1166,13 @@ coordination-negotiation
 -1000
 
 PLOT
-960
-14
-1160
-164
+958
+12
+1262
+171
 Waiting aircraft
 Time
-% Aircraft
+% All aircraft
 0.0
 10.0
 0.0
@@ -1163,28 +1181,17 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "if not empty? aircraft-waiting-list\n[plot mean aircraft-waiting-list]"
-"pen-1" 1.0 0 -9276814 true "" "if any? aircrafts\n[plot (count aircrafts with [free = false] / count aircrafts * 100)]"
-
-MONITOR
-576
-454
-713
-499
-Capacity occupancy [%]
-(count aircrafts) / taxiway-capacity * 100
-1
-1
-11
+"default" 1.0 0 -16777216 true "" "if any? aircrafts\n[plot (count aircrafts with [free = false] / count aircrafts * 100)]"
+"pen-1" 1.0 0 -2674135 true "" "if not empty? aircraft-waiting-list\n;if ticks > 1000\n[plot mean aircraft-waiting-list]"
 
 PLOT
 959
 177
-1159
-327
+1263
+340
 Occupied Links
 Time
-% Links
+% All links
 0.0
 10.0
 0.0
@@ -1194,14 +1201,14 @@ false
 "" ""
 PENS
 "default" 1.0 0 -16777216 true "" "plot occupied-links-count"
-"pen-1" 1.0 0 -7500403 true "" "if not empty? occupied-links-list\n[plot mean occupied-links-list]\n"
+"pen-1" 1.0 0 -2674135 true "" "if not empty? occupied-links-list\n[plot mean occupied-links-list]\n"
 
 MONITOR
-442
-453
-569
-498
-Full capacity links [%]
+960
+349
+1087
+394
+Saturated links [%]
 length filter [i -> i = 5] link-list / 37 * 100
 0
 1
@@ -1226,6 +1233,25 @@ Model features
 13
 0.0
 1
+
+PLOT
+1269
+177
+1572
+340
+Used capacity
+Time
+% Total Capacity
+0.0
+10.0
+0.0
+100.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot (count aircrafts / taxiway-capacity * 100)"
+"pen-1" 1.0 0 -2674135 true "" "if not empty? used-capacity-list\n;if ticks > 1000\n[plot mean used-capacity-list]"
 
 @#$#@#$#@
 ## WHAT IS IT?

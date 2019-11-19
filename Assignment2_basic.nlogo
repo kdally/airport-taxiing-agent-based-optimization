@@ -445,7 +445,10 @@ to go
   count-aircraft
   link-traffic
 
-  if ticks = 5000 [stop]
+  if ticks = 5000
+  [show-steady-state-performance-values
+   stop
+  ]
   tick                                      ; Adds one tick everytime the go procedure is performed
 
 
@@ -980,6 +983,17 @@ to count-aircraft
   ]
 end
 
+; SHOW-STEADY-STATE-PERFORMANCE-VALUES: Show the converged values of performance parameters
+
+to show-steady-state-performance-values
+ show arrived-left
+ show arrived-right
+ show counter-collisions
+ show mean aircraft-waiting-list
+ show mean occupied-links-list
+ show mean used-capacity-list
+ show mean travel-distance-list
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 223
@@ -1103,7 +1117,7 @@ SWITCH
 148
 stochastic-departure
 stochastic-departure
-0
+1
 1
 -1000
 
@@ -1152,7 +1166,7 @@ CHOOSER
 planning
 planning
 "Global" "Local" "None"
-0
+2
 
 SWITCH
 0
@@ -1173,7 +1187,7 @@ CHOOSER
 coordination-rule
 coordination-rule
 "Original rule" "Travel-time rule" "None"
-1
+0
 
 CHOOSER
 0
@@ -1213,7 +1227,7 @@ ticks-generator
 ticks-generator
 2
 7
-2.0
+4.0
 1
 1
 ticks btw a/c
@@ -1343,7 +1357,7 @@ SWITCH
 524
 airport-hub
 airport-hub
-0
+1
 1
 -1000
 

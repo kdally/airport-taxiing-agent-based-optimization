@@ -987,12 +987,12 @@ end
 
 to show-steady-state-performance-values
  show arrived-left
+ show arrived-right
  show counter-collisions
- show mean occupied-links-list
  show mean aircraft-waiting-list
- show mean travel-distance-list
+ show mean occupied-links-list
  show mean used-capacity-list
-
+ show mean travel-distance-list
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -1187,7 +1187,7 @@ CHOOSER
 coordination-rule
 coordination-rule
 "Original rule" "Travel-time rule" "None"
-1
+0
 
 CHOOSER
 0
@@ -1227,7 +1227,7 @@ ticks-generator
 ticks-generator
 2
 7
-2.0
+4.0
 1
 1
 ticks btw a/c

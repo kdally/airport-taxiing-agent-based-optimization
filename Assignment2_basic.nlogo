@@ -1204,7 +1204,7 @@ PLOT
 12
 1572
 171
-Average travel distance to runway
+Travel distance to runway
 Time
 Patches
 0.0

@@ -475,7 +475,6 @@ to go
 ; Ask infrastructures to calculate and report the interarrival time when aircraft arrive on one of the runways
   ask infrastructures with [patch-type = "runwayleft" or patch-type = "runwayright"] [calculate-interarrival]
 
-
   count-aircraft
   link-traffic
   update-bid-list
@@ -814,7 +813,7 @@ end
 
 to runway-usage                                                                                    ; Prevent two aircraft of using the runway at the same time
   link-traffic                                                                                     ; Call link-traffic to obtain link traffic data
-  set free true
+
   let right-runway count other aircrafts with [[patch-type] of patch-ahead 1 = "runwayright"]      ; Counts the amount of aircraft on the right runway
   let left-runway count other aircrafts with [[patch-type] of patch-ahead 1 = "runwayleft"]        ; Counts the amount of aircraft on the left runway
 
@@ -1031,6 +1030,7 @@ to show-steady-state-performance-values
  show mean travel-distance-list
 end
 
+
 to ask-input-for-analysis
   if conditions-mode = "normal"
   [set ticks-generator 4
@@ -1225,7 +1225,7 @@ SWITCH
 562
 structural-coordination
 structural-coordination
-1
+0
 1
 -1000
 
@@ -1247,7 +1247,7 @@ CHOOSER
 asymmetric-demand
 asymmetric-demand
 "left" "none" "right"
-1
+0
 
 PLOT
 1268
@@ -1277,7 +1277,7 @@ ticks-generator
 ticks-generator
 2
 7
-4.0
+3.0
 1
 1
 ticks btw a/c
@@ -1333,10 +1333,10 @@ PENS
 "pen-1" 1.0 0 -2674135 true "" "if not empty? occupied-links-list\n[plot mean occupied-links-list]\n"
 
 MONITOR
-727
-499
-854
-544
+960
+349
+1087
+394
 Saturated links [%]
 length filter [i -> i = 5] link-list / 37 * 100
 0
@@ -1383,10 +1383,10 @@ PENS
 "pen-1" 1.0 0 -2674135 true "" "if not empty? used-capacity-list\n;if ticks > 1000\n[plot mean used-capacity-list]"
 
 PLOT
-960
-344
-1264
-494
+1168
+371
+1368
+521
 Average travel time
 NIL
 NIL
@@ -1419,7 +1419,7 @@ CHOOSER
 conditions-mode
 conditions-mode
 "normal" "high" "asym"
-0
+2
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -1803,3 +1803,4 @@ Line -7500403 true 150 150 210 180
 @#$#@#$#@
 0
 @#$#@#$#@
+

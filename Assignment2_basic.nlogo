@@ -1182,7 +1182,7 @@ CHOOSER
 planning
 planning
 "Global" "Local" "None"
-2
+1
 
 SWITCH
 0
@@ -1191,7 +1191,7 @@ SWITCH
 562
 structural-coordination
 structural-coordination
-1
+0
 1
 -1000
 
@@ -1203,7 +1203,7 @@ CHOOSER
 coordination-rule
 coordination-rule
 "Original rule" "Travel-time rule" "None"
-0
+1
 
 CHOOSER
 0
@@ -1736,7 +1736,7 @@ NetLogo 6.1.0
 @#$#@#$#@
 @#$#@#$#@
 <experiments>
-  <experiment name="experiment" repetitions="10" runMetricsEveryStep="false">
+  <experiment name="Model Evalutation" repetitions="10" runMetricsEveryStep="false">
     <setup>setup</setup>
     <go>go</go>
     <timeLimit steps="5000"/>

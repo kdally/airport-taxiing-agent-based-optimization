@@ -28,6 +28,7 @@ aircrafts-own [
   waiting-time                                 ; Amount of time that aircraft has waited in total when travelling from gate to runway
   last-infra                                   ; Last infrastructure agent that aircraft has passed
   bid                                          ; The quantatity bid by an aircraft in an auction
+  total-bid                                    ; The total quantity of the bids performed in auctions
   budget                                       ; The remaining budget to be used by an aircraft to bid, in order to potentially be granted priority
   travel-distance                              ; Total distance travelled by an aircraft
   hub                                          ; Defines whether the aircraft has a hub at the airport or not
@@ -76,9 +77,10 @@ globals [
   occupied-links-count
   travel-distance-to-runway
   reds
+  ;efficiency
   traffic-left-approach
   traffic-right-approach
-  ;conditions
+  total-bid-list
 ]
 
 
@@ -96,7 +98,6 @@ extensions [
 to setup
   clear-all
 
-  ask-input-for-analysis
   ask patches [ set pcolor green + 1 ]                                                  ; Make all patches green, except:
   setup-roads                                                                           ; patches with special patch-types: roads, gates, and runways
   infrastructure-placing                                                                ; Place infrastructure agents on every intersection
@@ -388,34 +389,62 @@ end
 ;-------------------------------------------------------------------------------------
 ; EXECUTE AUCTION
 
-to perform-auction
-  set nearby-aircraft aircrafts in-radius 1.5                 ; Radius of 1.5 patches is considered in the negotiation area
-  if any? nearby-aircraft
-  [ask nearby-aircraft [
-    set free false
-    set bid waiting-time + random-float 0.1                   ; Add a random term such that there will always be one winner in case aircraft bid the same quantity
-    ifelse budget - bid < -100
-    [set bid 100 - budget - bid + random-float 0.1            ; The budget is empty, low bid assigned + random float
-    set budget -100]                                          ; Agent doesnt bid anything thus budget stays same (at depleted value)
-    [set budget budget - bid]
-    ]
+to auction
+  let x-patch pxcor
+  let y-patch pycor
 
-    ; In order to take into account that some aircraft are mroe important, a different initial budget can be assigned
+  let patch-infra patch-ahead 0
+  let patch-top patch-ahead 1
+  let patch-below patch-ahead -1
+  let patch-left patch-left-and-ahead 90 1
+  let patch-right patch-left-and-ahead 270 1
 
-    let nearby-aircraft-list [self] of nearby-aircraft
-    let nearby-aircraft-list2 [bid] of nearby-aircraft
+  if any? aircrafts with [(patch-ahead 0 = patch-top and patch-ahead 1 = patch-infra) or (patch-ahead 0 = patch-below and patch-ahead 1 = patch-infra) or (patch-ahead 0 = patch-left and patch-ahead 1 = patch-infra)  or (patch-ahead 0 = patch-right and patch-ahead 1 = patch-infra)]
+  [set nearby-aircraft aircrafts with [(patch-ahead 0 = patch-top and patch-ahead 1 = patch-infra) or (patch-ahead 0 = patch-below and patch-ahead 1 = patch-infra) or (patch-ahead 0 = patch-left and patch-ahead 1 = patch-infra)  or (patch-ahead 0 = patch-right and patch-ahead 1 = patch-infra)]
+    ifelse any? aircrafts with [xcor = x-patch and ycor = y-patch]
+    [ask nearby-aircraft [set free false]]
+    [let mean-travel-nearby-aircraft mean [travel-time] of nearby-aircraft
+    ask nearby-aircraft [
+      ifelse hub                                      ; Aircraft that have a hub at this airport receive a higher budget, also the randomly added value when budget is depleted can take a higher value
+      [
+      set free false
+      ;print total-bid
+      ifelse total-bid > 8                            ; If true => Resources depleted as reached maximum budget, bid is now small and random is as to prevent bid from being 0
+        [set bid random-float 0.02
+         set total-bid total-bid                      ; Total-bid remains the same value as maximum budget reached
+        ]
+      [set bid travel-time / mean-travel-nearby-aircraft + random-float 0.05
+      ;print travel-time / mean-travel-nearby-aircraft
+      set total-bid total-bid + bid
+      ; bid initially is 0, then added to it is the proportion of the travel-time of the aircraft and the average travel time of the nearby aircraft, a random float ensures travel times of aircraft will be different
+          ]
+      ]
+      [
+      set free false
+      ifelse total-bid > 4                            ; If true => Resources depleted as reached maximum budget, bid is now small and random is as to prevent bid from being 0
+        [set bid random-float 0.01
+         set total-bid total-bid                      ; Total-bid remains the same value as maximum budget reached
+        ]
+      [set bid travel-time / mean-travel-nearby-aircraft + random-float 0.05
+      set total-bid total-bid + bid
 
+      if ycor > 3 [
+      ;print "First Bid, then total bid"
+      ;print bid
+      ;print total-bid
+            ]
+      ; bid initially is 0, then added to it is the proportion of the travel-time of the aircraft and the average travel time of the nearby aircraft, a random float ensures travel times of aircraft will be different
+          ]
 
+      ]
+
+      ]
 
     let winner nearby-aircraft with-max [bid]
-    print [bid] of winner
-    ask winner
-    [set free true]
-
+      ask winner [set free true]
   ]
-
+  ]
 end
-
 
 ;-------------------------------------------------------------------------------------
 ; GO: Once everything has been set up correctly, a go command is used to start and continue the simulation
@@ -429,27 +458,32 @@ to go
   ask infrastructures [check-empty]         ; Checks if any aircraft is currently present on the infrastructure agent
   update-weights                            ; Updates link weights
 
-  if coordination-negotiation
-  [ask infrastructures [perform-auction]]  ; Perform auction at intersection between agents
-
   ask infrastructures [find-path]           ; Helper procedure: asks infrastructures to find the lowest weighted path over the weighted links
   ask aircrafts [find-other-aircraft]       ; Helper procedure: finds other aircraft close to aircraft to anticipate on these
   ask aircrafts [find-infrastructure-mate]  ; Helper procedure: if aircraft is on same patch as an infrastructure agent is, it becomes its "mate"
   ask aircrafts [find-following-patch]      ; Finds its next patch if aircraft goes one patch forward
   ask aircrafts [check-free]                ; Checks if the road is free and no other aircraft is currently on it or will be on it in the next tick
+
+  if coordination-negotiation
+  [ask infrastructures [auction]]  ; Perform auction at intersection between agentss
+
+  ask aircrafts [runway-usage]
+
   ask aircrafts [normal-taxi-runway]        ; Asks aircraft to taxi, if the road is free to go
   ask aircrafts [check-collision]           ; Checks if a collision is currently happening with another aircraft
 
 ; Ask infrastructures to calculate and report the interarrival time when aircraft arrive on one of the runways
   ask infrastructures with [patch-type = "runwayleft" or patch-type = "runwayright"] [calculate-interarrival]
 
+
   count-aircraft
   link-traffic
+  update-bid-list
 
-  ;if ticks = 5000
-  ;[show-steady-state-performance-values
-  ; stop
-  ;]
+  if ticks = 5000
+  [show-steady-state-performance-values
+   stop
+  ]
   tick                                      ; Adds one tick everytime the go procedure is performed
 
 
@@ -509,9 +543,7 @@ to check-free
   (ifelse coordination-rule = "Original rule"                                                                    ; Enforces coordination based on priority from the right if activated
     [coordination-rules-original]
    coordination-rule = "Travel-time rule"                                                                        ; Enforces coordination based on agent's total waiting time if activated
-    [coordination-rules-traveltime]
-   coordination-rule = "None"
-    [])
+    [coordination-rules-traveltime])
 end
 
 ;-------------------------------------------------------------------------------------
@@ -786,7 +818,7 @@ end
 
 to runway-usage                                                                                    ; Prevent two aircraft of using the runway at the same time
   link-traffic                                                                                     ; Call link-traffic to obtain link traffic data
-  set free true
+
   let right-runway count other aircrafts with [[patch-type] of patch-ahead 1 = "runwayright"]      ; Counts the amount of aircraft on the right runway
   let left-runway count other aircrafts with [[patch-type] of patch-ahead 1 = "runwayleft"]        ; Counts the amount of aircraft on the left runway
 
@@ -946,7 +978,8 @@ to check-collision                                                   ; Checks fo
   [set collision? false]
   [
   ifelse distance nearest-aircraft < 0.1                             ; If the distance is smaller than 0.1 patch, there is a collision, which is summed
-    [ set collision? true set counter-collisions (counter-collisions + 1) wait 2]
+    [ set collision? true set counter-collisions (counter-collisions + 1) wait 2
+    print "collision"]
     [ set collision? false ]
   ]
 end
@@ -973,6 +1006,12 @@ to calculate-interarrival
      ]
 end
 
+to update-bid-list
+  ask aircrafts[
+  if patch-type = "runway-right" or patch-type = "runway-left" and total-bid != 0
+        [set total-bid-list lput total-bid total-bid-list]]
+end
+
 ; COUNT-WAITING-AIRCRAFT: Count how many aircraft are currently waiting
 
 to count-aircraft
@@ -994,21 +1033,6 @@ to show-steady-state-performance-values
  show mean occupied-links-list
  show mean used-capacity-list
  show mean travel-distance-list
-end
-
-
-to ask-input-for-analysis
-  if conditions-mode = "normal"
-  [set ticks-generator 4
-   set asymmetric-demand "none"]
-
-  if conditions-mode = "high"
-  [set ticks-generator 2
-   set asymmetric-demand "none"]
-
-  if conditions-mode = "asym"
-  [set ticks-generator 3
-   set asymmetric-demand "left"]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -1133,7 +1157,7 @@ SWITCH
 148
 stochastic-departure
 stochastic-departure
-1
+0
 1
 -1000
 
@@ -1160,10 +1184,10 @@ arrived-right
 11
 
 SLIDER
-0
-149
-188
-182
+1
+198
+189
+231
 taxiway-capacity
 taxiway-capacity
 10
@@ -1176,9 +1200,9 @@ HORIZONTAL
 
 CHOOSER
 0
-404
+315
 184
-449
+360
 planning
 planning
 "Global" "Local" "None"
@@ -1186,41 +1210,41 @@ planning
 
 SWITCH
 0
-529
+440
 184
-562
+473
 structural-coordination
 structural-coordination
-0
+1
 1
 -1000
 
 CHOOSER
 0
-450
+361
 184
-495
+406
 coordination-rule
 coordination-rule
-"Original rule" "Travel-time rule" "None"
+"Original rule" "Travel-time rule"
 1
 
 CHOOSER
 0
-263
+150
 188
-308
+195
 asymmetric-demand
 asymmetric-demand
-"left" "none" "right"
-0
+"left" "normal" "right"
+1
 
 PLOT
 1268
 12
 1572
 171
-Travel distance
+Travel distance to runway
 Time
 Patches
 0.0
@@ -1236,14 +1260,14 @@ PENS
 
 SLIDER
 0
-229
+233
 188
-262
+266
 ticks-generator
 ticks-generator
 2
 7
-3.0
+2.0
 1
 1
 ticks btw a/c
@@ -1251,9 +1275,9 @@ HORIZONTAL
 
 SWITCH
 0
-495
+406
 184
-528
+439
 coordination-negotiation
 coordination-negotiation
 1
@@ -1321,9 +1345,9 @@ Demand conditions
 
 TEXTBOX
 3
-387
+298
 153
-405
+316
 Model features
 13
 0.0
@@ -1367,25 +1391,15 @@ PENS
 "default" 1.0 0 -16777216 true "" "if any? aircrafts [plot (mean [travel-time] of aircrafts)]"
 
 SWITCH
-0
-308
-187
-341
+2
+491
+182
+524
 airport-hub
 airport-hub
 1
 1
 -1000
-
-CHOOSER
-0
-183
-188
-228
-conditions-mode
-conditions-mode
-"normal" "high" "asym"
-2
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -1736,22 +1750,45 @@ NetLogo 6.1.0
 @#$#@#$#@
 @#$#@#$#@
 <experiments>
-  <experiment name="Model Evalutation" repetitions="10" runMetricsEveryStep="false">
+  <experiment name="experiment" repetitions="10" runMetricsEveryStep="false">
     <setup>setup</setup>
     <go>go</go>
-    <timeLimit steps="5000"/>
-    <metric>arrived-left</metric>
-    <metric>arrived-right</metric>
-    <metric>counter-collisions</metric>
-    <metric>mean aircraft-waiting-list</metric>
-    <metric>mean occupied-links-list</metric>
-    <metric>mean used-capacity-list</metric>
-    <metric>mean travel-distance-list</metric>
-    <enumeratedValueSet variable="conditions-mode">
-      <value value="&quot;normal&quot;"/>
-      <value value="&quot;high&quot;"/>
-      <value value="&quot;asym&quot;"/>
+    <timeLimit steps="3000"/>
+    <metric>mean waiting-time-list</metric>
+    <metric>standard-deviation waiting-time-list</metric>
+    <metric>mean interarrival-time-list</metric>
+    <metric>standard-deviation interarrival-time-list</metric>
+    <metric>mean travel-time-list</metric>
+    <metric>standard-deviation travel-time-list</metric>
+    <metric>100 * (length filter [ ?1 -&gt; ?1 = 0 ] waiting-time-list)/(length waiting-time-list)</metric>
+    <metric>100 * (length filter [ ?1 -&gt; ?1 &gt; 2 ] waiting-time-list)/(length waiting-time-list)</metric>
+    <enumeratedValueSet variable="negotiation-type">
+      <value value="&quot;waiting time based&quot;"/>
+      <value value="&quot;travel time based&quot;"/>
+      <value value="&quot;right first&quot;"/>
     </enumeratedValueSet>
+    <enumeratedValueSet variable="stochastic-departure">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="weighted-SP">
+      <value value="true"/>
+      <value value="false"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="experiment" repetitions="2" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="2000"/>
+    <metric>mean waiting-time-list</metric>
+    <metric>mean interarrival-time-list</metric>
+    <metric>mean travel-time-list</metric>
+    <enumeratedValueSet variable="stochastic-departure">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="taxiway-capacity">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="new_weight" first="1" step="1" last="5"/>
   </experiment>
 </experiments>
 @#$#@#$#@

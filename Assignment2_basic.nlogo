@@ -77,7 +77,6 @@ globals [
   occupied-links-count
   travel-distance-to-runway
   reds
-  ;efficiency
   traffic-left-approach
   traffic-right-approach
   total-bid-list
@@ -98,6 +97,7 @@ extensions [
 to setup
   clear-all
 
+  ask-input-for-analysis
   ask patches [ set pcolor green + 1 ]                                                  ; Make all patches green, except:
   setup-roads                                                                           ; patches with special patch-types: roads, gates, and runways
   infrastructure-placing                                                                ; Place infrastructure agents on every intersection
@@ -463,10 +463,10 @@ to go
   ask aircrafts [find-infrastructure-mate]  ; Helper procedure: if aircraft is on same patch as an infrastructure agent is, it becomes its "mate"
   ask aircrafts [find-following-patch]      ; Finds its next patch if aircraft goes one patch forward
   ask aircrafts [check-free]                ; Checks if the road is free and no other aircraft is currently on it or will be on it in the next tick
-
+  
   if coordination-negotiation
   [ask infrastructures [auction]]  ; Perform auction at intersection between agentss
-
+  
   ask aircrafts [runway-usage]
 
   ask aircrafts [normal-taxi-runway]        ; Asks aircraft to taxi, if the road is free to go
@@ -480,10 +480,6 @@ to go
   link-traffic
   update-bid-list
 
-  if ticks = 5000
-  [show-steady-state-performance-values
-   stop
-  ]
   tick                                      ; Adds one tick everytime the go procedure is performed
 
 
@@ -818,7 +814,7 @@ end
 
 to runway-usage                                                                                    ; Prevent two aircraft of using the runway at the same time
   link-traffic                                                                                     ; Call link-traffic to obtain link traffic data
-
+  set free true
   let right-runway count other aircrafts with [[patch-type] of patch-ahead 1 = "runwayright"]      ; Counts the amount of aircraft on the right runway
   let left-runway count other aircrafts with [[patch-type] of patch-ahead 1 = "runwayleft"]        ; Counts the amount of aircraft on the left runway
 
@@ -1034,6 +1030,20 @@ to show-steady-state-performance-values
  show mean used-capacity-list
  show mean travel-distance-list
 end
+
+to ask-input-for-analysis
+  if conditions-mode = "normal"
+  [set ticks-generator 4
+   set asymmetric-demand "none"]
+
+  if conditions-mode = "high"
+  [set ticks-generator 2
+   set asymmetric-demand "none"]
+
+  if conditions-mode = "asym"
+  [set ticks-generator 3
+   set asymmetric-demand "left"]
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 223
@@ -1157,7 +1167,7 @@ SWITCH
 148
 stochastic-departure
 stochastic-departure
-0
+1
 1
 -1000
 
@@ -1184,10 +1194,10 @@ arrived-right
 11
 
 SLIDER
-1
-198
-189
-231
+0
+149
+188
+182
 taxiway-capacity
 taxiway-capacity
 10
@@ -1200,9 +1210,9 @@ HORIZONTAL
 
 CHOOSER
 0
-315
+404
 184
-360
+449
 planning
 planning
 "Global" "Local" "None"
@@ -1210,41 +1220,41 @@ planning
 
 SWITCH
 0
-440
+529
 184
-473
+562
 structural-coordination
 structural-coordination
-1
+0
 1
 -1000
 
 CHOOSER
 0
-361
+450
 184
-406
+495
 coordination-rule
 coordination-rule
-"Original rule" "Travel-time rule"
+"Original rule" "Travel-time rule" "None"
 1
 
 CHOOSER
 0
-150
+263
 188
-195
+308
 asymmetric-demand
 asymmetric-demand
-"left" "normal" "right"
-1
+"left" "none" "right"
+0
 
 PLOT
 1268
 12
 1572
 171
-Travel distance to runway
+Travel distance
 Time
 Patches
 0.0
@@ -1260,14 +1270,14 @@ PENS
 
 SLIDER
 0
-233
+229
 188
-266
+262
 ticks-generator
 ticks-generator
 2
 7
-2.0
+3.0
 1
 1
 ticks btw a/c
@@ -1275,9 +1285,9 @@ HORIZONTAL
 
 SWITCH
 0
-406
+495
 184
-439
+528
 coordination-negotiation
 coordination-negotiation
 1
@@ -1345,9 +1355,9 @@ Demand conditions
 
 TEXTBOX
 3
-298
+387
 153
-316
+405
 Model features
 13
 0.0
@@ -1391,15 +1401,25 @@ PENS
 "default" 1.0 0 -16777216 true "" "if any? aircrafts [plot (mean [travel-time] of aircrafts)]"
 
 SWITCH
-2
-491
-182
-524
+0
+308
+187
+341
 airport-hub
 airport-hub
 1
 1
 -1000
+
+CHOOSER
+0
+183
+188
+228
+conditions-mode
+conditions-mode
+"normal" "high" "asym"
+2
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -1750,45 +1770,22 @@ NetLogo 6.1.0
 @#$#@#$#@
 @#$#@#$#@
 <experiments>
-  <experiment name="experiment" repetitions="10" runMetricsEveryStep="false">
+  <experiment name="Model Evalutation" repetitions="10" runMetricsEveryStep="false">
     <setup>setup</setup>
     <go>go</go>
-    <timeLimit steps="3000"/>
-    <metric>mean waiting-time-list</metric>
-    <metric>standard-deviation waiting-time-list</metric>
-    <metric>mean interarrival-time-list</metric>
-    <metric>standard-deviation interarrival-time-list</metric>
-    <metric>mean travel-time-list</metric>
-    <metric>standard-deviation travel-time-list</metric>
-    <metric>100 * (length filter [ ?1 -&gt; ?1 = 0 ] waiting-time-list)/(length waiting-time-list)</metric>
-    <metric>100 * (length filter [ ?1 -&gt; ?1 &gt; 2 ] waiting-time-list)/(length waiting-time-list)</metric>
-    <enumeratedValueSet variable="negotiation-type">
-      <value value="&quot;waiting time based&quot;"/>
-      <value value="&quot;travel time based&quot;"/>
-      <value value="&quot;right first&quot;"/>
+    <timeLimit steps="5000"/>
+    <metric>arrived-left</metric>
+    <metric>arrived-right</metric>
+    <metric>counter-collisions</metric>
+    <metric>mean aircraft-waiting-list</metric>
+    <metric>mean occupied-links-list</metric>
+    <metric>mean used-capacity-list</metric>
+    <metric>mean travel-distance-list</metric>
+    <enumeratedValueSet variable="conditions-mode">
+      <value value="&quot;normal&quot;"/>
+      <value value="&quot;high&quot;"/>
+      <value value="&quot;asym&quot;"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="stochastic-departure">
-      <value value="false"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="weighted-SP">
-      <value value="true"/>
-      <value value="false"/>
-    </enumeratedValueSet>
-  </experiment>
-  <experiment name="experiment" repetitions="2" runMetricsEveryStep="false">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="2000"/>
-    <metric>mean waiting-time-list</metric>
-    <metric>mean interarrival-time-list</metric>
-    <metric>mean travel-time-list</metric>
-    <enumeratedValueSet variable="stochastic-departure">
-      <value value="false"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="taxiway-capacity">
-      <value value="100"/>
-    </enumeratedValueSet>
-    <steppedValueSet variable="new_weight" first="1" step="1" last="5"/>
   </experiment>
 </experiments>
 @#$#@#$#@

@@ -463,10 +463,10 @@ to go
   ask aircrafts [find-infrastructure-mate]  ; Helper procedure: if aircraft is on same patch as an infrastructure agent is, it becomes its "mate"
   ask aircrafts [find-following-patch]      ; Finds its next patch if aircraft goes one patch forward
   ask aircrafts [check-free]                ; Checks if the road is free and no other aircraft is currently on it or will be on it in the next tick
-  
+
   if coordination-negotiation
   [ask infrastructures [auction]]  ; Perform auction at intersection between agentss
-  
+
   ask aircrafts [runway-usage]
 
   ask aircrafts [normal-taxi-runway]        ; Asks aircraft to taxi, if the road is free to go
@@ -1225,7 +1225,7 @@ SWITCH
 562
 structural-coordination
 structural-coordination
-0
+1
 1
 -1000
 
@@ -1247,7 +1247,7 @@ CHOOSER
 asymmetric-demand
 asymmetric-demand
 "left" "none" "right"
-0
+1
 
 PLOT
 1268
@@ -1277,7 +1277,7 @@ ticks-generator
 ticks-generator
 2
 7
-3.0
+4.0
 1
 1
 ticks btw a/c
@@ -1333,10 +1333,10 @@ PENS
 "pen-1" 1.0 0 -2674135 true "" "if not empty? occupied-links-list\n[plot mean occupied-links-list]\n"
 
 MONITOR
-960
-349
-1087
-394
+727
+499
+854
+544
 Saturated links [%]
 length filter [i -> i = 5] link-list / 37 * 100
 0
@@ -1383,10 +1383,10 @@ PENS
 "pen-1" 1.0 0 -2674135 true "" "if not empty? used-capacity-list\n;if ticks > 1000\n[plot mean used-capacity-list]"
 
 PLOT
-1168
-371
-1368
-521
+960
+344
+1264
+494
 Average travel time
 NIL
 NIL
@@ -1419,7 +1419,7 @@ CHOOSER
 conditions-mode
 conditions-mode
 "normal" "high" "asym"
-2
+0
 
 @#$#@#$#@
 ## WHAT IS IT?

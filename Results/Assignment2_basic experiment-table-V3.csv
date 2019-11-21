@@ -1,7 +1,7 @@
 "BehaviorSpace results (NetLogo 6.1.0)"
 "Assignment2_basic.nlogo"
 "Model Evalutation"
-"11/21/2019 18:06:45:313 +0100"
+"11/21/2019 19:25:45:807 +0100"
 "min-pxcor","max-pxcor","min-pycor","max-pycor"
 "-18","18","-16","16"
 "[run number]","conditions-mode","[step]","arrived-left","arrived-right","counter-collisions","mean aircraft-waiting-list","mean occupied-links-list","mean used-capacity-list","mean travel-distance-list"

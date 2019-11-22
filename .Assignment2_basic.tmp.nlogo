@@ -688,7 +688,7 @@ to normal-taxi-runway
 set travel-time (travel-time + 1 + random-float 0.00001)    ; Aircraft counts how long it has been travelling, and adds random component, so no travel-times of two a/c are same
 ifelse [patch-type] of patch-ahead 0 = "runwayleft" or [patch-type] of patch-ahead 0 = "runwayright"
     [set travel-time-to-runway travel-time
-     if ticks > 500
+     if ticks > 530
         [set travel-time-list lput travel-time-to-runway travel-time-list]    ; Put the travel time of the arrived aircraft in the list
      set waiting-time-list lput waiting-time waiting-time-list ; Put the waiting time of the arrived aircraft in the list
      die ]                                                     ; If runway has been reached: die.
@@ -809,7 +809,7 @@ to link-traffic
   let max-list-index position max-list link-list + 1
 
   set occupied-links-count length remove 0 link-list / 37 * 100
-  if ticks > 500
+  if ticks > 0.
   [set occupied-links-list lput occupied-links-count occupied-links-list]
 
   set traffic-left-approach (traffic-link-23 + traffic-link-30 + traffic-link-36)      ; The amount of traffic on left approach (three links leading to the left runway), used in runway-usage procedure
@@ -992,7 +992,7 @@ to calculate-interarrival
   [set interarrival-time (interarrival-time + 1)]                              ; Interarrival time is counted every tick
   if any? aircrafts-on patch patch-x patch-y                                   ; If an aircraft has arrived
       [set travel-distance-to-runway [travel-distance] of one-of aircrafts-on patch patch-x patch-y
-       if ticks > 500
+       if ticks > 0.0
         [set travel-distance-list lput travel-distance-to-runway travel-distance-list]
        if interarrival-time > 0
         [set interarrival-time-list lput interarrival-time interarrival-time-list]  ; Put the interarrival time between the arrived aircraft in the list
@@ -1015,7 +1015,7 @@ end
 ; COUNT-WAITING-AIRCRAFT: Count how many aircraft are currently waiting
 
 to count-aircraft
-  if any? aircrafts and ticks > 500
+  if any? aircrafts and ticks > 530
   [;set efficiency (arrived-left + arrived-right) / (ticks / rythm-right + ticks / rythm-centre + ticks / rythm-left) * 100
    ;set efficiency-list lput efficiency efficiency-list
    set used-capacity-list lput (count aircrafts / taxiway-capacity * 100) used-capacity-list
@@ -1230,7 +1230,7 @@ CHOOSER
 planning
 planning
 "Global" "Local" "None"
-2
+0
 
 SWITCH
 0
@@ -1239,7 +1239,7 @@ SWITCH
 389
 structural-coordination
 structural-coordination
-1
+0
 1
 -1000
 
@@ -1251,7 +1251,7 @@ CHOOSER
 coordination-rule
 coordination-rule
 "Original rule" "Travel-time rule" "None"
-0
+1
 
 CHOOSER
 0

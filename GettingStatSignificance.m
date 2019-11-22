@@ -5,8 +5,8 @@
 % 1000 for coeff. of variation means no variation
 
 clear
-raw_table = readtable('Results/Assignment2_basic experiment-table-V1.csv');
-%raw_table = readtable('Results/Assignment2_basic experiment-table-or.csv');
+%raw_table = readtable('Results/Assignment2_basic experiment-table-V1.csv');
+raw_table = readtable('Results/Assignment2_basic experiment-table-or.csv');
 raw_cell = table2cell(raw_table(:,4:end));
 
 % IF ERROR, COMMENT LINE 9 AND UNCOMMENT LINE 10
@@ -34,6 +34,6 @@ mean_asym = mean(asym);
 
 output = [mean_normal; mean_high; mean_asym; zeros(size(coeff_high)); coeff_normal; coeff_high; coeff_asym];
 
-csvwrite('Results/V1_model.csv',output)
-%csvwrite('Results/orginal_model.csv',output)
+%csvwrite('Results/V1_model.csv',output)
+csvwrite('Results/orginal_model.csv',output)
 

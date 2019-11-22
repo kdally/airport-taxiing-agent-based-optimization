@@ -1176,9 +1176,9 @@ PENS
 
 SWITCH
 0
-428
+447
 188
-461
+480
 stochastic-departure
 stochastic-departure
 1
@@ -1209,9 +1209,9 @@ arrived-right
 
 SLIDER
 0
-462
+481
 188
-495
+514
 taxiway-capacity
 taxiway-capacity
 10
@@ -1230,7 +1230,7 @@ CHOOSER
 planning
 planning
 "Global" "Local" "None"
-2
+0
 
 SWITCH
 0
@@ -1239,7 +1239,7 @@ SWITCH
 389
 structural-coordination
 structural-coordination
-1
+0
 1
 -1000
 
@@ -1251,17 +1251,17 @@ CHOOSER
 coordination-rule
 coordination-rule
 "Original rule" "Travel-time rule" "None"
-0
+1
 
 CHOOSER
 0
-530
+549
 188
-575
+594
 asymmetric-demand
 asymmetric-demand
 "left" "none" "right"
-1
+0
 
 PLOT
 1268
@@ -1284,14 +1284,14 @@ PENS
 
 SLIDER
 0
-496
+515
 188
-529
+548
 ticks-generator
 ticks-generator
 2
 7
-2.0
+3.0
 1
 1
 ticks btw a/c
@@ -1433,15 +1433,15 @@ CHOOSER
 159
 conditions-mode
 conditions-mode
-"normal" "high" "asymmetric"
-1
+"normal" "high" "asymmetric" "manual selection"
+2
 
 TEXTBOX
-4
-410
-233
-442
-Advanced demand conditions
+5
+412
+234
+444
+Manual selection for\ndemand conditions
 13
 0.0
 1

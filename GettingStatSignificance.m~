@@ -1,16 +1,18 @@
 
-%% MODEL ANALYSIS. JUST CHANGE INPUT LINE 8. 
+%% MODEL ANALYSIS. JUST CHANGE FILE NAME LINE 5 and 30. 
 % output has mean values on first three rows, below row of zeros, below
 % coefficient of variation
+%
+model = "V1" %V2, V3, V4, origi
 
 clear
 
-model = "V1"; % OR V2, V3, V4, original
+
 
 raw_table = readtable('Results/Assignment2_basic experiment-table-' + model + '.csv');
 raw_cell = table2cell(raw_table(:,4:end));
 
-% IF ERROR, COMMENT LINE 15 AND UNCOMMENT LINE 14
+% IF ERROR, COMMENT LINE 9 AND UNCOMMENT LINE 10
 %all_conditions = str2double(raw_cell);
 all_conditions = cell2mat(raw_cell);
 

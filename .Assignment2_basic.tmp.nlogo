@@ -1040,21 +1040,21 @@ to ask-input-for-analysis
   if conditions-mode = "normal"
   [set ticks-generator 4
    set asymmetric-demand "none"
-   set stochastic-departure false
+   set stochastic-departure true
    set taxiway-capacity 100
   ]
 
   if conditions-mode = "high"
   [set ticks-generator 2
    set asymmetric-demand "none"
-   set stochastic-departure false
+   set stochastic-departure true
    set taxiway-capacity 100
   ]
 
   if conditions-mode = "asymmetric"
   [set ticks-generator 3
    set asymmetric-demand "left"
-   set stochastic-departure false
+   set stochastic-departure
    set taxiway-capacity 100
   ]
 end
@@ -1181,7 +1181,7 @@ SWITCH
 480
 stochastic-departure
 stochastic-departure
-1
+0
 1
 -1000
 

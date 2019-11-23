@@ -5,14 +5,14 @@
 
 clear
 
-model = "V1"; % OR V2, V3, V4, original
+model = "V3"; % OR V2, V3, V4, original
 
 raw_table = readtable('Results/Assignment2_basic experiment-table-' + model + '.csv');
 raw_cell = table2cell(raw_table(:,4:end));
 
 % IF ERROR, COMMENT LINE 15 AND UNCOMMENT LINE 14
-%all_conditions = str2double(raw_cell);
-all_conditions = cell2mat(raw_cell);
+all_conditions = str2double(raw_cell);
+%all_conditions = cell2mat(raw_cell);
 
 normal = all_conditions(1:10,:);
 high = all_conditions(11:20,:);

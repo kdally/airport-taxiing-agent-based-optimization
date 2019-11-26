@@ -5,7 +5,7 @@
 
 clear
 
-model = "V3"; % OR V2, V3, V4, original
+model = "V3"; % OR, V2, V3, V4, original
 
 raw_table = readtable('Results/Assignment2_basic experiment-table-' + model + '.csv');
 raw_cell = table2cell(raw_table(:,4:end));

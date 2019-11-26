@@ -1,12 +1,12 @@
-breed [ infrastructures infrastructure  ]      ;; Define two types of agents: infrastructure and aircraft agents
+breed [ infrastructures infrastructure  ]      ; Define two types of agents: infrastructure and aircraft agents
 breed [ aircrafts aircraft ]
 
-undirected-link-breed [local-roads local-road]
-directed-link-breed [highways highway]
+undirected-link-breed [local-roads local-road] ; Define two tyes of links: undirected (bidirectional) local roads
+directed-link-breed [highways highway]         ; and directed (unidirectional) highways
 
 
 patches-own[
-  patch-type                                      ; Patches can be "road" (white), "gate" (red) or "runway" (blue)
+  patch-type                                   ; Patches can be "road" (white), "gate" (red) or "runway" (blue)
 ]
 
 aircrafts-own [
@@ -46,9 +46,9 @@ infrastructures-own [
   neighbor-east                                ; The neighboring infrastructure directly to the east of infrastructure A (assuming map pointing north)
   neighbor-south                               ; The neighboring infrastructure directly to the south of infrastructure A (assuming map pointing north)
   neighbor-west                                ; The neighboring infrastructure directly to the west of infrastructure A (assuming map pointing north)
+  neighbor-cardinal                            ; Neighboring infrastructure in a given cardinal direction from infrastructure A
+  aircrafts-cardinal                           ; Agenset of aircraft present on the adjacent link in a cardinal direction from infrastructure A
   key-waypoint                                 ; If this value reports true, the infrastructure is asked to change the weight of its adjacent links for the local observation-based planning
-  aircrafts-cardinal
-  neighbor-cardinal
   nearby-aircraft
 ]
 
@@ -66,17 +66,17 @@ globals [
   interarrival-time-list                       ; List of all interarrival-times
   travel-time-list                             ; List of all travel times of aircraft
   waiting-time-list                            ; List of all waiting times of aircraft
-  link-list
-  rythm-left
-  rythm-centre
-  rythm-right
-  used-capacity-list
-  aircraft-waiting-list
-  travel-distance-list
-  occupied-links-list
-  occupied-links-count
-  travel-distance-to-runway
-  travel-time-to-runway
+  link-list                                    ; List of list with all links and the number of aircraft on them
+  ticks-generator-left                         ; Number of ticks between the generation of aircraft at the left gate
+  ticks-generator-centre                       ; Number of ticks between the generation of aircraft at the central gate
+  ticks-generator-right                        ; Number of ticks between the generation of aircraft at the right gate
+  used-capacity-list                           ; List of all 'used capacity' values
+  aircraft-waiting-list                        ; List of all 'share of aircraft waiting' at every tick
+  travel-distance-list                         ; List of all travel distance to runway
+  occupied-links-list                          ; List of all 'share of occupied links' at every tick
+  occupied-links-count                         ; Value for share of occupied links at a given tick
+  travel-distance-to-runway                    ; Value for travel distance to runway at a given tick
+  travel-time-to-runway                        ; Value for travel distance to runway at a given tick
   reds
   traffic-left-approach
   traffic-right-approach
@@ -85,7 +85,7 @@ globals [
 
 
 links-own [
-  weight
+  weight                                       ; Each link is assigned its own weight
   ]
 
 extensions [
@@ -98,7 +98,7 @@ extensions [
 to setup
   clear-all
 
-  ask-input-for-analysis
+  ask-input-for-analysis                                                                ; If using the automatic demand mode selector, change demand conditions
   ask patches [ set pcolor green + 1 ]                                                  ; Make all patches green, except:
   setup-roads                                                                           ; patches with special patch-types: roads, gates, and runways
   infrastructure-placing                                                                ; Place infrastructure agents on every intersection
@@ -240,9 +240,9 @@ end
 ; CREATING-LINKS: Create links between infrastructure agents of the required type
 
 to creating-links
-  ifelse structural-coordination
-  [creating-directional-and-bidirectional-links]                                                                                               ; Create bidirectional and directional links between infrastructre agents
-  [creating-bidirectional-links]                                                                                                ; Create bidirectional links between all infrastructre agents
+  ifelse structural-coordination                                                                                                ; Initiate if structural modifications are desired
+  [creating-directional-and-bidirectional-links]                                                                                ; Create bidirectional and directional links between infrastructre agents
+  [creating-bidirectional-links]                                                                                                ; Otherwise, only create bidirectional links between all infrastructre agents
 end
 
 
@@ -265,26 +265,26 @@ to creating-directional-and-bidirectional-links
 
   let main-infra infrastructures with [abs(xcor) = 15 or ycor = -10 or (ycor = -5 and abs(xcor) >= 0)                           ; Identifies the main infrastrucutre agents to be connected by highways
     or (ycor = 0 and abs(xcor) >= 5) or (ycor = 5 and abs(xcor) >= 10)]
-  let secondary-infra infrastructures with [not member? self highways and ycor != 15 and ycor != -10]                           ; Identifies the secondary infrastrucutre agents to be connected by local roads
+  let secondary-infra infrastructures with [not member? self main-infra and ycor != 15]                                         ; Identifies the secondary infrastrucutre agents to be connected by local roads (the ones which are not highways)
 
   ask secondary-infra                                                                                                           ; Creates bidirectional local roads between secondary infrastrucutre agents and all their neighboring agents
   [create-local-roads-with other infrastructures in-radius 5 [ set weight 1 ]]                                                  ; The standard weight of a link is 1
 
   ask main-infra                                                                                                                ; Creates undirectional highways between main infrastrucutre agents
-  [set color 4
-   let py ycor                                                                                                                  ; Stores the coordinates of the main infrastrucutre agent A
+  [let py ycor                                                                                                                  ; Stores the coordinates of the main infrastrucutre agent A
    let px xcor
 
-   if any? main-infra with [xcor = px and ycor = py + 5 ]                                                                        ; Checks the presence of a neighboring main infrastrucutre agent north of agent A to create a link with
+   if any? main-infra with [xcor = px and ycor = py + 5 ]                                                                       ; Checks the presence of a neighboring main infrastrucutre agent north of agent A to create a link with
    [create-highway-to one-of main-infra with [xcor = px and ycor = py + 5][ set weight 1]]                                      ; The standard weight of a link is 1
 
-   if any? main-infra with [abs(xcor) = abs(px) + 5 and ycor = py and xcor * px > 0 and ycor != -10]                                            ; Checks the presence of a neighboring main infrastrucutre agent west (east) of agent A if agent A is on the left (right) half plane
-   [create-highway-to one-of main-infra with [abs(xcor) = abs(px) + 5 and ycor = py and xcor * px > 0 and ycor != -10][ set weight 1]]          ; The standard weight of a link is 1
+   if any? main-infra with [abs(xcor) = abs(px) + 5 and ycor = py and xcor * px > 0 and ycor != -10]                            ; Checks the presence of a neighboring main infrastrucutre agent west (east) of agent A if agent A is on the left (right) half plane
+   [create-highway-to one-of main-infra with [abs(xcor) = abs(px) + 5 and ycor = py and xcor * px > 0 and ycor != -10]
+      [set weight 1]]                                                                                                           ; The standard weight of a link is 1
 
-   if any? main-infra with [abs(xcor) = 5 and ycor = py  and py = -5 and px = 0]
-  [create-highways-to main-infra with [abs(xcor) = 5 and ycor = -5][ set weight 1]]          ; The standard weight of a link is 1
+   if any? main-infra with [abs(xcor) = 5 and ycor = py  and py = -5 and px = 0]                                                ; Create links connecting the path from the central gate
+   [create-highways-to main-infra with [abs(xcor) = 5 and ycor = -5][ set weight 1]]                                            ; The standard weight of a link is 1
 
-   set color 3
+   set color 3                                                                                                                  ; Set a darker grey color for highway links and theiur infrastructure agents
    ask highways [set color 3]
   ]
 
@@ -300,9 +300,9 @@ end
 
 to update-weights
   (ifelse planning = "Global"                                                                              ; Enforces planning based on global observations if activated
-    [ask infrastructures with [patch-type = "waypoint"] [update-weights-global-obs]]
+    [ask infrastructures with [patch-type = "waypoint"] [update-weights-global-obs]]                       ; Only waypoint agents are asked to change weights
    planning = "Local"                                                                                      ; Enforces planning based on local observations if activated
-    [ask infrastructures with [key-waypoint = true] [update-weights-local-obs]]
+    [ask infrastructures with [key-waypoint = true] [update-weights-local-obs]]                            ; Only key waypoint agents are asked to change weights
    planning = "None" [])                                                                                   ; Enforces no planning if no planning is activated
 end
 
@@ -313,38 +313,39 @@ to update-weights-local-obs
 let px xcor                                                                                                ; Stores the coordinates of the infrastrucutre agent A
 let py ycor
 
-let aircrafts-north aircrafts with [xcor = px and ycor > py and ycor < 5 + py]
-let aircrafts-east aircrafts with [xcor > px and xcor < 5 + px and ycor = py]
-let aircrafts-south aircrafts with [xcor = px and ycor < py and ycor > py - 5]
-let aircrafts-west aircrafts with [xcor < px and xcor > px - 5 and ycor = py]
+let aircrafts-north aircrafts with [xcor = px and ycor > py and ycor < 5 + py]                             ; Find aircraft present on the northern adjacent link to infrastrucutre agent A
+let aircrafts-east aircrafts with [xcor > px and xcor < 5 + px and ycor = py]                              ; Find aircraft present on the eastern adjacent link to infrastrucutre agent A
+let aircrafts-south aircrafts with [xcor = px and ycor < py and ycor > py - 5]                             ; Find aircraft present on the southern adjacent link to infrastrucutre agent A
+let aircrafts-west aircrafts with [xcor < px and xcor > px - 5 and ycor = py]                              ; Find aircraft present on the western adjacent link to infrastrucutre agent A
 
-set aircrafts-cardinal  aircrafts-north
-set neighbor-cardinal   neighbor-north
-update-link-weight-in-cardinal-direction
+set aircrafts-cardinal  aircrafts-north                                                                    ; Helper procedure for weight update function
+set neighbor-cardinal   neighbor-north                                                                     ; Helper procedure for wieght update function
+update-link-weight-in-cardinal-direction                                                                   ; Update weights of northern adjacent link
 
-set aircrafts-cardinal  aircrafts-east
-set neighbor-cardinal   neighbor-east
-update-link-weight-in-cardinal-direction
+set aircrafts-cardinal  aircrafts-east                                                                     ; Helper procedure for weight update function
+set neighbor-cardinal   neighbor-east                                                                      ; Helper procedure for weight update function
+update-link-weight-in-cardinal-direction                                                                   ; Update weights of eastern adjacent link
 
-set aircrafts-cardinal  aircrafts-south
-set neighbor-cardinal   neighbor-south
-update-link-weight-in-cardinal-direction
+set aircrafts-cardinal  aircrafts-south                                                                    ; Helper procedure for weight update function
+set neighbor-cardinal   neighbor-south                                                                     ; Helper procedure for weight update function
+update-link-weight-in-cardinal-direction                                                                   ; Update weights of southern adjacent link
 
-set aircrafts-cardinal  aircrafts-west
-set neighbor-cardinal   neighbor-west
-update-link-weight-in-cardinal-direction
-
+set aircrafts-cardinal  aircrafts-west                                                                     ; Helper procedure for weight update function
+set neighbor-cardinal   neighbor-west                                                                      ; Helper procedure for weight update function
+update-link-weight-in-cardinal-direction                                                                   ; Update weights of western adjacent link
 end
 
 
+; UPDATE-LINK-WEIGHT-IN-CARDINAL-DIRECTON: Change weights ofadjacent link in a given cardinal direction
+
 to update-link-weight-in-cardinal-direction
-  if any? aircrafts-cardinal                                   ; Checks if any aicraft is present on its western adjacent link. If at least one is present, initiate procedure
-  [let aircrafts-cardinal-free count aircrafts-cardinal with [free = true]                        ; Counts how many aicraft are present on that link
-   let aircrafts-cardinal-waiting count aircrafts-cardinal with [free = false]
-   let weight-factor (aircrafts-cardinal-free + 1.5 * aircrafts-cardinal-waiting) / 4
-   ifelse local-road  [who] of self [who] of neighbor-cardinal != nobody                                       ; Checks the breed that link, update the right link breed
-      [ask local-road [who] of self [who] of neighbor-cardinal [set weight weight-factor + 1]]               ; Increases that link's weight based on the number of aircraft present on that link
-      [ask highway    [who] of self [who] of neighbor-cardinal [set weight weight-factor + 1]]
+  if any? aircrafts-cardinal                                                                               ; Checks if any aicraft is present on the adjacent link in question. If at least one is present, initiate procedure
+  [let aircrafts-cardinal-free count aircrafts-cardinal with [free = true]                                 ; Counts how many non-waiting aicraft are present on that link
+   let aircrafts-cardinal-waiting count aircrafts-cardinal with [free = false]                             ; Counts how many waiting aicraft are present on that link
+   let weight-factor (aircrafts-cardinal-free + 1.5 * aircrafts-cardinal-waiting) / 4                      ; Computes weight increase factor based on local observations
+   ifelse local-road  [who] of self [who] of neighbor-cardinal != nobody                                   ; Checks if the link between infrastrucutre agent A and neighboring infrastructure is a local road
+      [ask local-road [who] of self [who] of neighbor-cardinal [set weight weight-factor + 1]]             ; Increases that link's weight based on the number of aircraft present on that link
+      [ask highway    [who] of self [who] of neighbor-cardinal [set weight weight-factor + 1]]             ; If that link is a highway, increases that link's weight based on the number of aircraft present on that link
   ]
   end
 
@@ -352,34 +353,34 @@ to update-link-weight-in-cardinal-direction
 ; UPDATE-WEIGHTS-GLOBAL-OBS: To change weights of links based on global observations
 
 to update-weights-global-obs
-let waiting-aircrafts aircrafts in-radius 30 with [free = false and last-infra != nobody]                        ; Count how many aircraft are currently waiting on the field, excluding the ones who have not reached a waypoint yet
-ifelse any? waiting-aircrafts                                                                               ; If aircraft with such conditions are present, initiate procedure
-   [foreach sort-on [waiting-time] waiting-aircrafts [the-waiting-aircraft ->
-    let path-to-congestion nw:path-to [last-infra] of the-waiting-aircraft
-    if not empty? path-to-congestion
-       [let weight-factor 1 / ( [distance myself] of the-waiting-aircraft + 1) * [waiting-time] of the-waiting-aircraft / max [waiting-time] of waiting-aircrafts
-        ask first path-to-congestion [set weight 1 + weight-factor]]
-
+let waiting-aircrafts aircrafts in-radius 30 with [free = false and last-infra != nobody]                 ; Counts how many aircraft are currently waiting on the field, excluding the ones who have not reached a waypoint yet
+ifelse any? waiting-aircrafts                                                                             ; If aircraft with such conditions are present, initiate procedure
+   [foreach sort-on [waiting-time] waiting-aircrafts [the-waiting-aircraft ->                             ; Sorts aircraft on witing time and for each waiting aircraft, do
+    let path-to-congestion nw:path-to [last-infra] of the-waiting-aircraft                                ; Computes the path from infrastructure agent A to that waiting aircraft
+    if not empty? path-to-congestion                                                                      ; If a path exists,
+       [let weight-factor 1 / ( [distance myself] of the-waiting-aircraft + 1)                            ; Computes the weight increase factor based on the waiting time of this aircraft and its distance to infrastructure agent A
+          * [waiting-time] of the-waiting-aircraft / max [waiting-time] of waiting-aircrafts              ;
+        ask first path-to-congestion [set weight 1 + weight-factor]]                                      ; Infrastructure agent A changes the weight of one of its adjacent link only
         ]
   ]
-   [let px xcor
+   [let px xcor                                                                                           ; Stores the coordinates of the infrastrucutre agent A
     let py ycor
 
-    if aircrafts != nobody and abs(px) != 15
-    [let aircraft-density-east count aircrafts with [xcor > px] / count infrastructures with [xcor > px]
-    let aircraft-density-west count aircrafts with [xcor <= px] / count infrastructures with [xcor <= px]
+    if aircrafts != nobody and abs(px) != 15                                                              ; Initiates weight update procedure if aircraft are present and not on the western adn eastern borders
+    [let aircraft-density-east count aircrafts with [xcor > px] / count infrastructures with [xcor > px]  ; Computes the density of aircraft on to the east of infrastrucutre agent A
+    let aircraft-density-west count aircrafts with [xcor <= px] / count infrastructures with [xcor <= px] ; Computes the density of aircraft on to the west of infrastrucutre agent A
 
-    (ifelse aircraft-density-east > aircraft-density-west
-    [ifelse local-road [who] of self [who] of neighbor-east != nobody
-      [ask local-road [who] of self [who] of neighbor-east [set weight 1.2]]
-      [ask highway [who] of self [who] of neighbor-east [set weight 1.2]]
+    (ifelse aircraft-density-east > aircraft-density-west                                                 ; Identifies the side with higher aircraft density
+    [ifelse local-road [who] of self [who] of neighbor-east != nobody                                     ; If link is a local road, makes link increase their weight
+      [ask local-road [who] of self [who] of neighbor-east [set weight 1.2]]                              ;
+      [ask highway [who] of self [who] of neighbor-east [set weight 1.2]]                                 ; If link is a highway, makes link increase their weight
     ]
-    aircraft-density-east < aircraft-density-west
-     [ifelse local-road [who] of self [who] of neighbor-west != nobody
-      [ask local-road [who] of self [who] of neighbor-west [set weight 1.2]]
-      [ask highway [who] of self [who] of neighbor-west [set weight 1.2]]
+    aircraft-density-east < aircraft-density-west                                                         ; Identifies the side with higher aircraft density
+     [ifelse local-road [who] of self [who] of neighbor-west != nobody                                    ; If link is a local road, makes link increase their weigh
+      [ask local-road [who] of self [who] of neighbor-west [set weight 1.2]]                              ;
+      [ask highway [who] of self [who] of neighbor-west [set weight 1.2]]                                 ; If link is a highway, makes link increase their weight
     ]
-      [])
+      [])                                                                                                 ; If the densities are equal, no weight change
     ]
   ]
 
@@ -476,14 +477,11 @@ to go
 ; Ask infrastructures to calculate and report the interarrival time when aircraft arrive on one of the runways
   ask infrastructures with [patch-type = "runwayleft" or patch-type = "runwayright"] [calculate-interarrival]
 
-  count-aircraft
+  count-aircraft                            ; For analysis, count aircraft and waiting aircraft
   link-traffic
   update-bid-list
 
   tick                                      ; Adds one tick everytime the go procedure is performed
-
-  if ticks = 800
-  [stop]
 
 end
 
@@ -759,7 +757,7 @@ to link-traffic
   let traffic-link-36 count aircrafts with [pycor >= 5 and pycor <= 10 and pxcor = -15]
   let traffic-link-37 count aircrafts with [pycor >= 5 and pycor <= 10 and pxcor = 15]
 
-  set link-list []; I Moved it to SETUP
+  set link-list [];
 
   set link-list lput traffic-link-1 link-list
   set link-list lput traffic-link-2 link-list
@@ -808,12 +806,12 @@ to link-traffic
   let max-list max(link-list)
   let max-list-index position max-list link-list + 1
 
-  set occupied-links-count length remove 0 link-list / 37 * 100
-  if ticks > 500
-  [set occupied-links-list lput occupied-links-count occupied-links-list]
+  set occupied-links-count length remove 0 link-list / 37 * 100                                    ; Computes the share of links which have an aircraft or more present on them (37 links in total)
+  if ticks > 500                                                                                   ; When the metric has converged close to a steady state average,
+  [set occupied-links-list lput occupied-links-count occupied-links-list]                          ; adds its value to a list to later compute the value of the steady state average
 
-  set traffic-left-approach (traffic-link-23 + traffic-link-30 + traffic-link-36)      ; The amount of traffic on left approach (three links leading to the left runway), used in runway-usage procedure
-  set traffic-right-approach (traffic-link-29 + traffic-link-35 + traffic-link-37)     ; The amount of traffic on right approach (three links leading to the right runway), used in runway-usage procedure
+  set traffic-left-approach (traffic-link-23 + traffic-link-30 + traffic-link-36)                  ; The amount of traffic on left approach (three links leading to the left runway), used in runway-usage procedure
+  set traffic-right-approach (traffic-link-29 + traffic-link-35 + traffic-link-37)                 ; The amount of traffic on right approach (three links leading to the right runway), used in runway-usage procedure
 end
 
 to runway-usage                                                                                    ; Prevent two aircraft of using the runway at the same time
@@ -830,56 +828,56 @@ to runway-usage                                                                 
 end
 
 to find-path
-  set path nw:turtles-on-weighted-path-to infrastructure 26 "weight"                   ; Asks infrastructures to find the lowest weighted path over the weighted links
+  set path nw:turtles-on-weighted-path-to infrastructure 26 "weight"                               ; Asks infrastructures to find the lowest weighted path over the weighted links
 end
 
-to make-ticks-generator                                                                ; Specifies how often new aircraft are generated
+to make-ticks-generator                                                                            ; Specifies how often new aircraft are generated
 
-  set rythm-left ticks-generator                                                                     ; Aircraft are generated at gates every 3 ticks
-  set rythm-centre ticks-generator                                                                   ; Aircraft are generated at gates every 3 ticks
-  set rythm-right ticks-generator                                                                    ; Aircraft are generated at gates every 3 ticks
+  set ticks-generator-left ticks-generator                                                         ; Aircraft are generated at gates every 3 ticks
+  set ticks-generator-centre ticks-generator                                                       ; Aircraft are generated at gates every 3 ticks
+  set ticks-generator-right ticks-generator                                                        ; Aircraft are generated at gates every 3 ticks
 
-  if asymmetric-demand = "left"
-  [set rythm-left ticks-generator - 1
-   set rythm-centre ticks-generator + 1
-   set rythm-right ticks-generator + 1]
-  if asymmetric-demand = "right"
-  [set rythm-left ticks-generator + 1
-   set rythm-centre ticks-generator + 1
-   set rythm-right ticks-generator - 1]
+  if asymmetric-demand = "left"                                                                    ; In case of left asymmetric demand,
+  [set ticks-generator-left ticks-generator - 1                                                    ; Decrease the ticks-generator at the left gate
+   set ticks-generator-centre ticks-generator + 1                                                  ; Increase the ticks-generator at the central gate
+   set ticks-generator-right ticks-generator + 1]                                                  ; Increase the ticks-generator at the right gate
+  if asymmetric-demand = "right"                                                                   ; In case of left asymmetric demand,
+  [set ticks-generator-left ticks-generator + 1                                                    ; Increase the ticks-generator at the left gate
+   set ticks-generator-centre ticks-generator + 1                                                  ; Increase the ticks-generator at the central gate
+   set ticks-generator-right ticks-generator - 1]                                                  ; Decrease the ticks-generator at the right gate
 end
 
 to find-integer
 ; Generation of aircraft, every 5 ticks, either stochastically or not
 
-    if int (ticks / rythm-left) = (ticks / rythm-left)                         ; Every time that 5 ticks have passed,
+    if int (ticks / ticks-generator-left) = (ticks / ticks-generator-left)                         ; Every time that the amount of ticks that have passed is ticks-generator-left,
     [
-      ifelse stochastic-departure = true                                                   ; If stochastic-departure is on,
-      [set random-generator-1 ticks + one-of [0 1 2]]                                      ; for every gate, choose random number between 0 and 4, and add this to the current amount of ticks.
-      [set random-generator-1 ticks]                                                        ; If stochastic-departure is off, generate all new aircraft at same time, every 5 ticks
+      ifelse stochastic-departure = true                                                           ; If stochastic-departure is on,
+      [set random-generator-1 ticks + one-of [0 1 2]]                                              ; for every gate, choose random number between 0 and 4, and add this to the current amount of ticks.
+      [set random-generator-1 ticks]                                                               ; If stochastic-departure is off, generate all new aircraft at same time, every 5 ticks
        ]
 
-    if int (ticks / rythm-centre) = (ticks / rythm-centre)                         ; Every time that 5 ticks have passed,
+    if int (ticks / ticks-generator-centre) = (ticks / ticks-generator-centre)                     ; Every time that the amount of ticks that have passed is ticks-generator-centre,
     [
-      ifelse stochastic-departure = true                                                   ; If stochastic-departure is on,
-      [set random-generator-2 ticks + one-of [0 1 2]]                                      ; for every gate, choose random number between 0 and 4, and add this to the current amount of ticks.
-      [set random-generator-2 ticks]                                                        ; If stochastic-departure is off, generate all new aircraft at same time, every 5 ticks
+      ifelse stochastic-departure = true                                                           ; If stochastic-departure is on,
+      [set random-generator-2 ticks + one-of [0 1 2]]                                              ; for every gate, choose random number between 0 and 4, and add this to the current amount of ticks.
+      [set random-generator-2 ticks]                                                               ; If stochastic-departure is off, generate all new aircraft at same time, every 5 ticks
        ]
 
-    if int (ticks / rythm-right) = (ticks / rythm-right)                         ; Every time that 5 ticks have passed,
+    if int (ticks / ticks-generator-right) = (ticks / ticks-generator-right)                       ; Every time that the amount of ticks that have passed is ticks-generator-right,
     [
-      ifelse stochastic-departure = true                                                   ; If stochastic-departure is on,
-      [set random-generator-3 ticks + one-of [0 1 2]]                                      ; for every gate, choose random number between 0 and 4, and add this to the current amount of ticks.
-      [set random-generator-3 ticks]                                                        ; If stochastic-departure is off, generate all new aircraft at same time, every 5 ticks
+      ifelse stochastic-departure = true                                                           ; If stochastic-departure is on,
+      [set random-generator-3 ticks + one-of [0 1 2]]                                              ; for every gate, choose random number between 0 and 4, and add this to the current amount of ticks.
+      [set random-generator-3 ticks]                                                               ; If stochastic-departure is off, generate all new aircraft at same time, every 5 ticks
        ]
 
-    ifelse random-generator-1 = ticks                                                    ; If the random-generator equals current amount of ticks,
-    [set integer-1 "true"]                                                               ; a new aircraft can be generated on gate 1
+    ifelse random-generator-1 = ticks                                                              ; If the random-generator equals current amount of ticks,
+    [set integer-1 "true"]                                                                         ; a new aircraft can be generated on gate 1
     [set integer-1 "false"]
-    ifelse random-generator-2 = ticks                                                    ; idem
+    ifelse random-generator-2 = ticks                                                              ; idem
     [set integer-2 "true"]
     [set integer-2 "false"]
-    ifelse random-generator-3 = ticks                                                    ; idem
+    ifelse random-generator-3 = ticks                                                              ; idem
     [set integer-3 "true"]
     [set integer-3 "false"]
 
@@ -960,8 +958,9 @@ to check-empty                                                                  
   [set empty true]                                                                     ; Otherwise agent A is empty
 end
 
-to determine-if-key
-  ifelse (ycor = -5 and xcor mod 10 = 0) or (ycor = 0 and xcor mod 10 = 5)  or (ycor = 5 and xcor mod 10 = 0)
+to determine-if-key                                                                    ; Determines if infrastructure agent is a key waypoint
+  ifelse (ycor = -5 and xcor mod 10 = 0) or (ycor = 0 and xcor mod 10 = 5)             ; Uses coordinates to determine that
+           or (ycor = 5 and xcor mod 10 = 0)
      [set key-waypoint true]
      [set key-waypoint false]
 end
@@ -1000,11 +999,13 @@ to calculate-interarrival
        set activated 1                                                          ; Activate calculation after first aircraft has arrived
 
       ifelse patch-type = "runwayleft"                                          ; If the arrival is at left runway,
-      [set arrived-left (arrived-left + 1)]                                    ; count one extra at left runway
-      [set arrived-right (arrived-right + 1)]                                  ; if at right runway, count one at right runway
+      [set arrived-left (arrived-left + 1)]                                     ; count one extra at left runway
+      [set arrived-right (arrived-right + 1)]                                   ; if at right runway, count one at right runway
 
      ]
 end
+
+; UPDATE-BID-LIST:
 
 to update-bid-list
   ask aircrafts[
@@ -1012,49 +1013,38 @@ to update-bid-list
         [set total-bid-list lput total-bid total-bid-list]]
 end
 
-; COUNT-WAITING-AIRCRAFT: Count how many aircraft are currently waiting
+; COUNT-AIRCRAFT: Count aircraft
 
 to count-aircraft
-  if any? aircrafts and ticks > 500
-  [;set efficiency (arrived-left + arrived-right) / (ticks / rythm-right + ticks / rythm-centre + ticks / rythm-left) * 100
-   ;set efficiency-list lput efficiency efficiency-list
-   set used-capacity-list lput (count aircrafts / taxiway-capacity * 100) used-capacity-list
-   set aircraft-waiting-list lput (count aircrafts with [free = false] / count aircrafts * 100) aircraft-waiting-list
+  if any? aircrafts and ticks > 500                                           ; Counts only if aircraft are present and after the metric has converged close to a steady state average
+  [set used-capacity-list lput
+    (count aircrafts / taxiway-capacity * 100) used-capacity-list              ; Append to list the used capacity share
+   set aircraft-waiting-list lput
+    (count aircrafts with [free = false] / count aircrafts * 100) aircraft-waiting-list ; Append to list the used capacity share
   ]
 end
 
-; SHOW-STEADY-STATE-PERFORMANCE-VALUES: Show the converged values of performance parameters
-
-to show-steady-state-performance-values
- show arrived-left
- show arrived-right
- show counter-collisions
- show mean aircraft-waiting-list
- show mean occupied-links-list
- show mean used-capacity-list
- show mean travel-distance-list
-end
-
+; ASK-INPUT-FOR-ANALYSIS: If the automatic demand condition selector is chosen, change demand conditions
 
 to ask-input-for-analysis
   if conditions-mode = "normal"
   [set ticks-generator 4
    set asymmetric-demand "none"
-   set stochastic-departure true
+   set stochastic-departure false
    set taxiway-capacity 100
   ]
 
   if conditions-mode = "high"
   [set ticks-generator 2
    set asymmetric-demand "none"
-   set stochastic-departure true
+   set stochastic-departure false
    set taxiway-capacity 100
   ]
 
   if conditions-mode = "asymmetric"
   [set ticks-generator 3
    set asymmetric-demand "left"
-   set stochastic-departure
+   set stochastic-departure false
    set taxiway-capacity 100
   ]
 end
@@ -1181,7 +1171,7 @@ SWITCH
 480
 stochastic-departure
 stochastic-departure
-0
+1
 1
 -1000
 
@@ -1239,7 +1229,7 @@ SWITCH
 389
 structural-coordination
 structural-coordination
-1
+0
 1
 -1000
 

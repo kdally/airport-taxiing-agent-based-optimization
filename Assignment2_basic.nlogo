@@ -265,7 +265,7 @@ to creating-directional-and-bidirectional-links
 
   let main-infra infrastructures with [abs(xcor) = 15 or ycor = -10 or (ycor = -5 and abs(xcor) >= 0)                           ; Identifies the main infrastrucutre agents to be connected by highways
     or (ycor = 0 and abs(xcor) >= 5) or (ycor = 5 and abs(xcor) >= 10)]
-  let secondary-infra infrastructures with [not member? self main-infra and ycor != 15]                                         ; Identifies the secondary infrastrucutre agents to be connected by local roads (the ones which are not highways)
+  let secondary-infra infrastructures with [not member? self highways and ycor != 15 and ycor != -10]                           ; Identifies the secondary infrastrucutre agents to be connected by local roads (the ones which are not highways)
 
   ask secondary-infra                                                                                                           ; Creates bidirectional local roads between secondary infrastrucutre agents and all their neighboring agents
   [create-local-roads-with other infrastructures in-radius 5 [ set weight 1 ]]                                                  ; The standard weight of a link is 1
@@ -366,7 +366,7 @@ ifelse any? waiting-aircrafts                                                   
    [let px xcor                                                                                           ; Stores the coordinates of the infrastrucutre agent A
     let py ycor
 
-    if aircrafts != nobody and abs(px) != 15                                                              ; Initiates weight update procedure if aircraft are present and not on the western adn eastern borders
+    if aircrafts != nobody and abs(px) != 15                                                              ; Initiates weight update procedure if aircraft are present and not on the western and eastern borders
     [let aircraft-density-east count aircrafts with [xcor > px] / count infrastructures with [xcor > px]  ; Computes the density of aircraft on to the east of infrastrucutre agent A
     let aircraft-density-west count aircrafts with [xcor <= px] / count infrastructures with [xcor <= px] ; Computes the density of aircraft on to the west of infrastrucutre agent A
 
@@ -1412,7 +1412,7 @@ SWITCH
 193
 airport-hub
 airport-hub
-1
+0
 1
 -1000
 

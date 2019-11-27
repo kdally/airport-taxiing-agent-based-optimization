@@ -433,9 +433,6 @@ to auction
       [set bid travel-time / mean-travel-nearby-aircraft + random-float 0.05
       set total-bid total-bid + bid                   ; Bid initially 0, added is the proportion of travel-time of aircraft and average travel time of the nearby aircraft
 
-      if ycor > 3 [
-            ]
-
           ]
       ]
       ]

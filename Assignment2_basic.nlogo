@@ -49,7 +49,7 @@ infrastructures-own [
   neighbor-cardinal                            ; Neighboring infrastructure in a given cardinal direction from infrastructure A
   aircrafts-cardinal                           ; Agenset of aircraft present on the adjacent link in a cardinal direction from infrastructure A
   key-waypoint                                 ; If this value reports true, the infrastructure is asked to change the weight of its adjacent links for the local observation-based planning
-  nearby-aircraft
+  nearby-aircraft                              ; Used for coordination by negotiation auctions, defines closeby aircraft
 ]
 
 globals [
@@ -65,6 +65,8 @@ globals [
   ac-generated
   interarrival-time-list                       ; List of all interarrival-times
   travel-time-list                             ; List of all travel times of aircraft
+  travel-time-prio-list                        ; List of all travel times of aircraft with priority
+  travel-time-nonprio-list                     ; List of all travel times of aircraft without priority
   waiting-time-list                            ; List of all waiting times of aircraft
   link-list                                    ; List of list with all links and the number of aircraft on them
   ticks-generator-left                         ; Number of ticks between the generation of aircraft at the left gate
@@ -77,10 +79,10 @@ globals [
   occupied-links-count                         ; Value for share of occupied links at a given tick
   travel-distance-to-runway                    ; Value for travel distance to runway at a given tick
   travel-time-to-runway                        ; Value for travel distance to runway at a given tick
-  reds
-  traffic-left-approach
-  traffic-right-approach
-  total-bid-list
+  reds                                         ; Amount of waiting (aka red) aircraft
+  traffic-left-approach                        ; Amount of traffic present on taxiway links leading to left runway
+  traffic-right-approach                       ; Amount of traffic present on taxiway links leading to right runway
+  total-bid-list                               ; List of total-bid (budget) done by aircraft during coordination by negotiation
 ]
 
 
@@ -108,6 +110,8 @@ to setup
   set-default-shape infrastructures "circle"
   set interarrival-time-list []                                                         ; Initialize interarrival-time-list
   set travel-time-list []                                                               ; Initialize travel-time-list
+  set travel-time-nonprio-list []                                                       ; Initialize travel-time-nonprio-list
+  set travel-time-prio-list []                                                          ; Initialize travel-time-prio-list
   set waiting-time-list []                                                              ; Initialize waiting-time-list
   set aircraft-waiting-list []                                                          ; Initialize aircraft-waiting-list
   set occupied-links-list []                                                            ; Initialize occupied-links-list
@@ -395,16 +399,17 @@ to auction
   let x-patch pxcor
   let y-patch pycor
 
-  let patch-infra patch-ahead 0
-  let patch-top patch-ahead 1
-  let patch-below patch-ahead -1
-  let patch-left patch-left-and-ahead 90 1
-  let patch-right patch-left-and-ahead 270 1
+  let patch-infra patch-ahead 0                        ; Infrastructure's own patch
+  let patch-top patch-ahead 1                          ; Patch north of infrastructure
+  let patch-below patch-ahead -1                       ; Patch south of infrastructure
+  let patch-left patch-left-and-ahead 90 1             ; Patch east of infrastructure
+  let patch-right patch-left-and-ahead 270 1           ; Patch west of infrastructure
 
+  ; If aircraft on any of above patches and patch-ahead is infrastructure's patch, start coordination by negotiation process
   if any? aircrafts with [(patch-ahead 0 = patch-top and patch-ahead 1 = patch-infra) or (patch-ahead 0 = patch-below and patch-ahead 1 = patch-infra) or (patch-ahead 0 = patch-left and patch-ahead 1 = patch-infra)  or (patch-ahead 0 = patch-right and patch-ahead 1 = patch-infra)]
   [set nearby-aircraft aircrafts with [(patch-ahead 0 = patch-top and patch-ahead 1 = patch-infra) or (patch-ahead 0 = patch-below and patch-ahead 1 = patch-infra) or (patch-ahead 0 = patch-left and patch-ahead 1 = patch-infra)  or (patch-ahead 0 = patch-right and patch-ahead 1 = patch-infra)]
     ifelse any? aircrafts with [xcor = x-patch and ycor = y-patch]
-    [ask nearby-aircraft [set free false]]
+    [ask nearby-aircraft [set free false]]            ; If there are any aicraft on the infrastructure's patch, the nearby aircraft are set free to false until crossing is cleared
     [let mean-travel-nearby-aircraft mean [travel-time] of nearby-aircraft
     ask nearby-aircraft [
       ifelse hub                                      ; Aircraft that have a hub at this airport receive a higher budget, also the randomly added value when budget is depleted can take a higher value
@@ -416,9 +421,7 @@ to auction
          set total-bid total-bid                      ; Total-bid remains the same value as maximum budget reached
         ]
       [set bid travel-time / mean-travel-nearby-aircraft + random-float 0.05
-      ;print travel-time / mean-travel-nearby-aircraft
       set total-bid total-bid + bid
-      ; bid initially is 0, then added to it is the proportion of the travel-time of the aircraft and the average travel time of the nearby aircraft, a random float ensures travel times of aircraft will be different
           ]
       ]
       [
@@ -428,22 +431,16 @@ to auction
          set total-bid total-bid                      ; Total-bid remains the same value as maximum budget reached
         ]
       [set bid travel-time / mean-travel-nearby-aircraft + random-float 0.05
-      set total-bid total-bid + bid
+      set total-bid total-bid + bid                   ; Bid initially 0, added is the proportion of travel-time of aircraft and average travel time of the nearby aircraft
 
       if ycor > 3 [
-      ;print "First Bid, then total bid"
-      ;print bid
-      ;print total-bid
             ]
-      ; bid initially is 0, then added to it is the proportion of the travel-time of the aircraft and the average travel time of the nearby aircraft, a random float ensures travel times of aircraft will be different
+
           ]
-
       ]
-
       ]
-
-    let winner nearby-aircraft with-max [bid]
-      ask winner [set free true]
+    let winner nearby-aircraft with-max [bid]         ; Winner is nearby aircraft with highest bid
+      ask winner [set free true]                      ; Winner is subsequently set free
   ]
   ]
 end
@@ -467,7 +464,7 @@ to go
   ask aircrafts [check-free]                ; Checks if the road is free and no other aircraft is currently on it or will be on it in the next tick
 
   if coordination-negotiation
-  [ask infrastructures [auction]]  ; Perform auction at intersection between agentss
+  [ask infrastructures [auction]]           ; Perform auction at intersection between agentss
 
   ask aircrafts [runway-usage]
 
@@ -478,8 +475,8 @@ to go
   ask infrastructures with [patch-type = "runwayleft" or patch-type = "runwayright"] [calculate-interarrival]
 
   count-aircraft                            ; For analysis, count aircraft and waiting aircraft
-  link-traffic
-  update-bid-list
+  link-traffic                              ; Used for analysis
+  update-bid-list                           ; Used for analysis
 
   tick                                      ; Adds one tick everytime the go procedure is performed
 
@@ -530,7 +527,7 @@ end
 ; CHECK-FREE: Check if the coming patches are free to travel to and if seperation must be maintained
 
 to check-free
-  find-other-aircraft-1-2-3          ; Helper procedure that finds and identifies other aircraft that are within radius of 1.5 patches
+  find-other-aircraft-1-2-3                         ; Helper procedure that finds and identifies other aircraft that are within radius of 1.5 patches
 
   set free true                                     ; In principle aircraft is free to go further.
 
@@ -688,6 +685,9 @@ ifelse [patch-type] of patch-ahead 0 = "runwayleft" or [patch-type] of patch-ahe
     [set travel-time-to-runway travel-time
      if ticks > 500
         [set travel-time-list lput travel-time-to-runway travel-time-list]    ; Put the travel time of the arrived aircraft in the list
+        ifelse hub
+        [set travel-time-prio-list lput travel-time-to-runway travel-time-prio-list]
+        [set travel-time-nonprio-list lput travel-time-to-runway travel-time-nonprio-list]
      set waiting-time-list lput waiting-time waiting-time-list ; Put the waiting time of the arrived aircraft in the list
      die ]                                                     ; If runway has been reached: die.
   [ifelse free = false
@@ -696,7 +696,7 @@ ifelse [patch-type] of patch-ahead 0 = "runwayleft" or [patch-type] of patch-ahe
       set color red]                                        ; and set color to red, to see clearly that an aircraft is waiting
     [move-to patch-ahead 1                                  ; If free is not false, then one aircraft can move ahead,
       ifelse hub
-      [set color blue]                                     ; and color can be (re)set to black
+      [set color blue]                                      ; and color can be (re)set to black
       [set color black]
       set travel-distance (travel-distance + 1)
       if on-infra = 1                                       ; If a/c is on infrastructure agent,
@@ -711,8 +711,8 @@ end
 ; HELPER PROCEDURES
 ; Procedures called upon in the above procedures.
 to link-traffic
-  ; Hardcoding it, possible to add lable to all links in the interface to be able to see clearly which link has which number
   ; Numbering done bottom to top, left to right
+  ; Gather data on taxiway traffic, useful for analysis o.a.
   let traffic-link-1 count aircrafts with [pycor >= -10 and pycor < -5 and pxcor = -5]
   let traffic-link-2 count aircrafts with [pycor >= -10 and pycor < -5 and pxcor = 0]
   let traffic-link-3 count aircrafts with [pycor >= -10 and pycor < -5 and pxcor = 5]
@@ -759,7 +759,7 @@ to link-traffic
 
   set link-list [];
 
-  set link-list lput traffic-link-1 link-list
+  set link-list lput traffic-link-1 link-list                                 ; Add number of aircraft on respective links to the link-list
   set link-list lput traffic-link-2 link-list
   set link-list lput traffic-link-3 link-list
 
@@ -1294,7 +1294,7 @@ SWITCH
 355
 coordination-negotiation
 coordination-negotiation
-1
+0
 1
 -1000
 
@@ -1368,10 +1368,10 @@ Model features
 1
 
 PLOT
-1279
-394
-1582
-557
+959
+398
+1262
+561
 Used capacity
 Time
 % Total Capacity
@@ -1435,6 +1435,25 @@ Manual selection for\ndemand conditions
 13
 0.0
 1
+
+PLOT
+1267
+342
+1570
+560
+Hub / Non-hub mean travel time
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -10146808 true "" "if not empty? travel-time-nonprio-list\n[plot mean travel-time-nonprio-list]"
+"pen-1" 1.0 0 -11783835 true "" "if not empty? travel-time-prio-list\n[plot mean travel-time-prio-list]"
 
 @#$#@#$#@
 ## WHAT IS IT?
